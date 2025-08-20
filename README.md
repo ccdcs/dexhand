@@ -36,6 +36,15 @@ It allows you to develop in an isolated environment, outside of the core Isaac L
         # use 'FULL_PATH_TO_isaaclab.sh|bat -p' instead of 'python' if Isaac Lab is not installed in Python venv or conda
         python scripts/list_envs.py
         ```
+    - Running kinematics simulation:
+      ```bash
+      python scripts/test_joint.py
+      ```
+
+    - Running compliance simulation:
+      ```bash
+      python scripts/test_jacob.py
+      ```
 
     - Running a task:
 
