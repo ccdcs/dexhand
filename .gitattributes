@@ -10,3 +10,5 @@
 *.pt filter=lfs diff=lfs merge=lfs -text
 *.jit filter=lfs diff=lfs merge=lfs -text
 *.hdf5 filter=lfs diff=lfs merge=lfs -text
+assets/**/*.{obj,mtl,stl,fbx,glb,gltf,bin,usd,usda,usdc,usdz,exr,hdr,png,jpg,jpeg,tif,tiff,xyz} filter=lfs diff=lfs merge=lfs -text
+assets/**/*.urdf filter=lfs diff=lfs merge=lfs -text
