@@ -101,7 +101,7 @@ class DexhandSingleEnvCfg(DirectRLEnvCfg):
     # robot_cfg: ArticulationCfg = CARTPOLE_CFG.replace(prim_path="/World/envs/env_.*/Robot")
     robot_cfg: ArticulationCfg = DOFBOT_CONFIG.replace(prim_path="/World/envs/env_.*/Robot")
     # scene
-    scene: InteractiveSceneCfg = InteractiveSceneCfg(num_envs=1, env_spacing=4.0, replicate_physics=True)
+    scene: InteractiveSceneCfg = InteractiveSceneCfg(num_envs=4096, env_spacing=4.0, replicate_physics=True)
 
     # custom parameters/scales
     # - controllable joint

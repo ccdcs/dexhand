@@ -52,6 +52,7 @@ simulation_app = app_launcher.app
 import gymnasium as gym
 import math
 import os
+import pickle
 import random
 from datetime import datetime
 
@@ -68,7 +69,7 @@ from isaaclab.envs import (
 )
 from isaaclab.utils.assets import retrieve_file_path
 from isaaclab.utils.dict import print_dict
-from isaaclab.utils.io import dump_pickle, dump_yaml
+from isaaclab.utils.io import dump_yaml
 
 from isaaclab_rl.rl_games import RlGamesGpuEnv, RlGamesVecEnvWrapper
 
@@ -76,6 +77,12 @@ import isaaclab_tasks  # noqa: F401
 from isaaclab_tasks.utils.hydra import hydra_task_config
 
 import Dexhand_single.tasks  # noqa: F401
+
+
+def dump_pickle(filepath, data):
+    """Saves a python object to a file using pickle."""
+    with open(filepath, "wb") as f:
+        pickle.dump(data, f)
 
 
 @hydra_task_config(args_cli.task, "rl_games_cfg_entry_point")

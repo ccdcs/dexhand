@@ -134,7 +134,7 @@ class DexhandSingleEnv(DirectRLEnv):
             ),
             dim=-1,
         )
-        observations = {"policy": obs}
+        observations = {"policy": obs, "critic": obs}
         return observations
 
     def _get_rewards(self) -> torch.Tensor:
