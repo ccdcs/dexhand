@@ -27,7 +27,7 @@ It allows you to develop in an isolated environment, outside of the core Isaac L
 
 - Verify that the extension is correctly installed by:
 
-    - Listing the available tasks:
+  - Listing the available tasks:
 
         Note: It the task name changes, it may be necessary to update the search pattern `"Template-"`
         (in the `scripts/list_envs.py` file) so that it can be listed.
@@ -36,34 +36,46 @@ It allows you to develop in an isolated environment, outside of the core Isaac L
         # use 'FULL_PATH_TO_isaaclab.sh|bat -p' instead of 'python' if Isaac Lab is not installed in Python venv or conda
         python scripts/list_envs.py
         ```
-    - Running kinematics simulation:
+
+  - Running kinematics simulation:
+
       ```bash
       python scripts/test_joint.py
       ```
 
-    - Running compliance simulation:
+  - Running compliance simulation:
+
       ```bash
       python scripts/test_jacob.py
       ```
 
-    - Running a task:
+  - Running a task:
 
         ```bash
         # use 'FULL_PATH_TO_isaaclab.sh|bat -p' instead of 'python' if Isaac Lab is not installed in Python venv or conda
         python scripts/<RL_LIBRARY>/train.py --task=Template-Dexhand-Single-Direct-v0
         ```
 
-    - Running a task with dummy agents:
+  - Playing a Policy and Recording a Video:
+
+        To play a trained policy and record a video, you can use the `play.py` script. This script will load a trained model and run it in the simulation environment.
+
+        ```bash
+        python scripts/rsl_rl/play.py --task=Template-Dexhand-Single-Direct-v0 --checkpoint=<PATH_TO_CHECKPOINT> --video
+        ```
+
+  - Running a task with dummy agents:
 
         These include dummy agents that output zero or random agents. They are useful to ensure that the environments are configured correctly.
 
-        - Zero-action agent
+    - Zero-action agent
 
             ```bash
             # use 'FULL_PATH_TO_isaaclab.sh|bat -p' instead of 'python' if Isaac Lab is not installed in Python venv or conda
             python scripts/zero_agent.py --task=<TASK_NAME>
             ```
-        - Random-action agent
+
+    - Random-action agent
 
             ```bash
             # use 'FULL_PATH_TO_isaaclab.sh|bat -p' instead of 'python' if Isaac Lab is not installed in Python venv or conda

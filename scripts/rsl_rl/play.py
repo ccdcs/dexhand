@@ -26,7 +26,7 @@ parser.add_argument("--video_length", type=int, default=200, help="Length of the
 parser.add_argument(
     "--disable_fabric", action="store_true", default=False, help="Disable fabric and use USD I/O operations."
 )
-parser.add_argument("--num_envs", type=int, default=None, help="Number of environments to simulate.")
+parser.add_argument("--num_envs", type=int, default=1, help="Number of environments to simulate.")
 parser.add_argument("--task", type=str, default=None, help="Name of the task.")
 parser.add_argument(
     "--use_pretrained_checkpoint",
@@ -133,17 +133,17 @@ def main():
         # version 2.2 and below
         policy_nn = ppo_runner.alg.actor_critic
 
-    # export policy to onnx/jit
-    export_model_dir = os.path.join(os.path.dirname(resume_path), "exported")
-    export_policy_as_jit(policy_nn, ppo_runner.obs_normalizer, path=export_model_dir, filename="policy.pt")
-    export_policy_as_onnx(
-        policy_nn, normalizer=ppo_runner.obs_normalizer, path=export_model_dir, filename="policy.onnx"
-    )
+    # # export policy to onnx/jit
+    # export_model_dir = os.path.join(os.path.dirname(resume_path), "exported")
+    # export_policy_as_jit(policy_nn, ppo_runner.obs_normalizer, path=export_model_dir, filename="policy.pt")
+    # export_policy_as_onnx(
+    #     policy_nn, normalizer=ppo_runner.obs_normalizer, path=export_model_dir, filename="policy.onnx"
+    # )
 
     dt = env.unwrapped.step_dt
 
     # reset environment
-    obs, _ = env.get_observations()
+    obs = env.get_observations()
     timestep = 0
     # simulate environment
     while simulation_app.is_running():
