@@ -55,9 +55,6 @@ class TargetPoseEnv(DirectRLEnv):
         light_cfg = sim_utils.DomeLightCfg(intensity=2000.0, color=(0.75, 0.75, 0.75))
         light_cfg.func("/World/Light", light_cfg)
 
-        # set the target pose
-        self.target_joint_pos[:] = 0.5
-
     def _pre_physics_step(self, actions: torch.Tensor) -> None:
         self.actions = actions.clone()
 
@@ -86,28 +83,12 @@ class TargetPoseEnv(DirectRLEnv):
         )
 
     def _get_dones(self) -> tuple[torch.Tensor, torch.Tensor]:
-        self.joint_pos = self.robot.data.joint_pos
-        self.joint_vel = self.robot.data.joint_vel
-
         time_out = self.episode_length_buf >= self.max_episode_length - 1
-        out_of_bounds = torch.any(
-            torch.abs(self.joint_pos[:, self.l1_idx]) > self.cfg.max_cart_pos, dim=1
+        max_angle = max(
+            abs(self.cfg.target_joint_angle_range[0]),
+            abs(self.cfg.target_joint_angle_range[1]),
         )
-        out_of_bounds = out_of_bounds | torch.any(
-            torch.abs(self.joint_pos[:, self.l2_idx]) > math.pi / 2, dim=1
-        )
-        out_of_bounds = out_of_bounds | torch.any(
-            torch.abs(self.joint_pos[:, self.l3_idx]) > math.pi / 2, dim=1
-        )
-        out_of_bounds = out_of_bounds | torch.any(
-            torch.abs(self.joint_pos[:, self.r1_idx]) > math.pi / 2, dim=1
-        )
-        out_of_bounds = out_of_bounds | torch.any(
-            torch.abs(self.joint_pos[:, self.r2_idx]) > math.pi / 2, dim=1
-        )
-        out_of_bounds = out_of_bounds | torch.any(
-            torch.abs(self.joint_pos[:, self.r3_idx]) > math.pi / 2, dim=1
-        )
+        out_of_bounds = torch.any(torch.abs(self.joint_pos) > max_angle, dim=1)
         return out_of_bounds, time_out
 
     def _reset_idx(self, env_ids: Sequence[int] | None):
@@ -115,53 +96,17 @@ class TargetPoseEnv(DirectRLEnv):
             env_ids = self.robot._ALL_INDICES
         super()._reset_idx(env_ids)
 
+        # set random target pose
+        self.target_joint_pos[env_ids] = sample_uniform(
+            self.cfg.target_joint_angle_range[0],
+            self.cfg.target_joint_angle_range[1],
+            (len(env_ids), 6),
+            device=self.device,
+        )
+
+        # reset state
         joint_pos = self.robot.data.default_joint_pos[env_ids]
-        joint_pos[:, self.l1_idx] += sample_uniform(
-            self.cfg.initial_l1_angle_range[0] * math.pi,
-            self.cfg.initial_l1_angle_range[1] * math.pi,
-            joint_pos[:, self.l1_idx].shape,
-            joint_pos.device,
-        )
-        joint_pos[:, self.l2_idx] += sample_uniform(
-            self.cfg.initial_l2_angle_range[0] * math.pi,
-            self.cfg.initial_l2_angle_range[1] * math.pi,
-            joint_pos[:, self.l2_idx].shape,
-            joint_pos.device,
-        )
-        joint_pos[:, self.l3_idx] += sample_uniform(
-            self.cfg.initial_l3_angle_range[0] * math.pi,
-            self.cfg.initial_l3_angle_range[1] * math.pi,
-            joint_pos[:, self.l3_idx].shape,
-            joint_pos.device,
-        )
-        joint_pos[:, self.r1_idx] += sample_uniform(
-            self.cfg.initial_r1_angle_range[0] * math.pi,
-            self.cfg.initial_r1_angle_range[1] * math.pi,
-            joint_pos[:, self.r1_idx].shape,
-            joint_pos.device,
-        )
-        joint_pos[:, self.r2_idx] += sample_uniform(
-            self.cfg.initial_r2_angle_range[0] * math.pi,
-            self.cfg.initial_r2_angle_range[1] * math.pi,
-            joint_pos[:, self.r2_idx].shape,
-            joint_pos.device,
-        )
-        joint_pos[:, self.r3_idx] += sample_uniform(
-            self.cfg.initial_r3_angle_range[0] * math.pi,
-            self.cfg.initial_r3_angle_range[1] * math.pi,
-            joint_pos[:, self.r3_idx].shape,
-            joint_pos.device,
-        )
         joint_vel = self.robot.data.default_joint_vel[env_ids]
-
-        default_root_state = self.robot.data.default_root_state[env_ids]
-        default_root_state[:, :3] += self.scene.env_origins[env_ids]
-
-        self.joint_pos[env_ids] = joint_pos
-        self.joint_vel[env_ids] = joint_vel
-
-        self.robot.write_root_pose_to_sim(default_root_state[:, :7], env_ids)
-        self.robot.write_root_velocity_to_sim(default_root_state[:, 7:], env_ids)
         self.robot.write_joint_state_to_sim(joint_pos, joint_vel, None, env_ids)
 
 
