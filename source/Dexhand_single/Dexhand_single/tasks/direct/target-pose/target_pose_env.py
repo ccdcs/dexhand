@@ -20,7 +20,7 @@ from .kinematics.compute_joint import compute_jacobian, inverse_kinematics_with_
 from .kinematics.compliance_utils import compliance_cl
 
 
-class DexhandSingleEnv(DirectRLEnv):
+class TargetPoseEnv(DirectRLEnv):
     cfg: DexhandSingleEnvCfg
 
     def __init__(

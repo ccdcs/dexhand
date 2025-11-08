@@ -14,7 +14,7 @@ from . import agents
 
 gym.register(
     id="Target-Pose",
-    entry_point=f"{__name__}.dexhand_single_env:DexhandSingleEnv",
+    entry_point=f"{__name__}.target_pose_env:TargetPoseEnv",
     disable_env_checker=True,
     kwargs={
         "env_cfg_entry_point": f"{__name__}.dexhand_single_env_cfg:DexhandSingleEnvCfg",
@@ -22,4 +22,3 @@ gym.register(
         "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:PPORunnerCfg",
     },
 )
-
