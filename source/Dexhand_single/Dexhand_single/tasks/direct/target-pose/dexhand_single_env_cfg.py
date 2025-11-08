@@ -91,7 +91,7 @@ class DexhandSingleEnvCfg(DirectRLEnvCfg):
     episode_length_s = 5.0
     # - spaces definition
     action_space = 6
-    observation_space = 6
+    observation_space = 12
     state_space = 6
 
     # simulation
@@ -116,12 +116,7 @@ class DexhandSingleEnvCfg(DirectRLEnvCfg):
     # - reward scales
     rew_scale_alive = 1.0
     rew_scale_terminated = -2.0
-    rew_scale_l1_pos = -1.0
-    rew_scale_l2_pos = -1.0
-    rew_scale_l3_pos = -1.0
-    rew_scale_r1_pos = -1.0
-    rew_scale_r2_pos = -1.0
-    rew_scale_r3_pos = -1.0
+    rew_scale_pose_error = -1.0
     # - reset states/conditions
     initial_l1_angle_range = [-0.1, 0.1]  # pole angle sample range on reset [rad]
     initial_l2_angle_range = [-0.1, 0.1]  # pole angle sample range on reset [rad]
