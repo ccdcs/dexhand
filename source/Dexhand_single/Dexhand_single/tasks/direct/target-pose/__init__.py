@@ -13,7 +13,7 @@ from . import agents
 
 
 gym.register(
-    id="Template-Dexhand-Single-Direct-v0",
+    id="Target-Pose",
     entry_point=f"{__name__}.dexhand_single_env:DexhandSingleEnv",
     disable_env_checker=True,
     kwargs={
@@ -22,3 +22,4 @@ gym.register(
         "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:PPORunnerCfg",
     },
 )
+
