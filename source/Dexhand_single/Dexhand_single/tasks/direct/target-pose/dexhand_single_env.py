@@ -23,7 +23,12 @@ from .kinematics.compliance_utils import compliance_cl
 class DexhandSingleEnv(DirectRLEnv):
     cfg: DexhandSingleEnvCfg
 
-    def __init__(self, cfg: DexhandSingleEnvCfg, render_mode: str | None = None, **kwargs):
+    def __init__(
+        self, cfg: DexhandSingleEnvCfg, render_mode: str | None = None, **kwargs
+    ):
+        self.target_joint_pos = torch.zeros(
+            (cfg.scene.num_envs, 6), device=cfg.sim.device
+        )
         super().__init__(cfg, render_mode, **kwargs)
 
         self.l1_idx, _ = self.robot.find_joints(self.cfg.l1_dof_name)
@@ -35,8 +40,6 @@ class DexhandSingleEnv(DirectRLEnv):
 
         self.joint_pos = self.robot.data.joint_pos
         self.joint_vel = self.robot.data.joint_vel
-
-        self.target_joint_pos = torch.zeros((self.num_envs, 6), device=self.device)
 
         self.test_count = 0
 
@@ -60,6 +63,7 @@ class DexhandSingleEnv(DirectRLEnv):
 
     def _apply_action(self) -> None:
         self.robot.set_joint_position_target(self.actions)
+
     def _get_observations(self) -> dict:
         obs = torch.cat(
             (
@@ -86,12 +90,24 @@ class DexhandSingleEnv(DirectRLEnv):
         self.joint_vel = self.robot.data.joint_vel
 
         time_out = self.episode_length_buf >= self.max_episode_length - 1
-        out_of_bounds = torch.any(torch.abs(self.joint_pos[:, self.l1_idx]) > self.cfg.max_cart_pos, dim=1)
-        out_of_bounds = out_of_bounds | torch.any(torch.abs(self.joint_pos[:, self.l2_idx]) > math.pi / 2, dim=1)
-        out_of_bounds = out_of_bounds | torch.any(torch.abs(self.joint_pos[:, self.l3_idx]) > math.pi / 2, dim=1)
-        out_of_bounds = out_of_bounds | torch.any(torch.abs(self.joint_pos[:, self.r1_idx]) > math.pi / 2, dim=1)
-        out_of_bounds = out_of_bounds | torch.any(torch.abs(self.joint_pos[:, self.r2_idx]) > math.pi / 2, dim=1)
-        out_of_bounds = out_of_bounds | torch.any(torch.abs(self.joint_pos[:, self.r3_idx]) > math.pi / 2, dim=1)
+        out_of_bounds = torch.any(
+            torch.abs(self.joint_pos[:, self.l1_idx]) > self.cfg.max_cart_pos, dim=1
+        )
+        out_of_bounds = out_of_bounds | torch.any(
+            torch.abs(self.joint_pos[:, self.l2_idx]) > math.pi / 2, dim=1
+        )
+        out_of_bounds = out_of_bounds | torch.any(
+            torch.abs(self.joint_pos[:, self.l3_idx]) > math.pi / 2, dim=1
+        )
+        out_of_bounds = out_of_bounds | torch.any(
+            torch.abs(self.joint_pos[:, self.r1_idx]) > math.pi / 2, dim=1
+        )
+        out_of_bounds = out_of_bounds | torch.any(
+            torch.abs(self.joint_pos[:, self.r2_idx]) > math.pi / 2, dim=1
+        )
+        out_of_bounds = out_of_bounds | torch.any(
+            torch.abs(self.joint_pos[:, self.r3_idx]) > math.pi / 2, dim=1
+        )
         return out_of_bounds, time_out
 
     def _reset_idx(self, env_ids: Sequence[int] | None):
