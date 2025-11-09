@@ -3,7 +3,6 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-from isaaclab_assets.robots.cartpole import CARTPOLE_CFG
 
 from isaaclab.assets import ArticulationCfg
 from isaaclab.envs import DirectRLEnvCfg
@@ -98,7 +97,6 @@ class DexhandSingleEnvCfg(DirectRLEnvCfg):
     sim: SimulationCfg = SimulationCfg(dt=1 / 120, render_interval=decimation)
 
     # robot(s)
-    # robot_cfg: ArticulationCfg = CARTPOLE_CFG.replace(prim_path="/World/envs/env_.*/Robot")
     robot_cfg: ArticulationCfg = DOFBOT_CONFIG.replace(
         prim_path="/World/envs/env_.*/Robot"
     )
