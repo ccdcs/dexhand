@@ -336,6 +336,12 @@ python scripts/rl_games/train.py \
     --video \
     --video_interval 2000
 ```
+[Screencast from 11-08-2025 03:32:35 PM.webm](https://github.com/user-attachments/assets/1fae4344-a282-49c4-89c6-de5099e02a33)
+
+[Screencast from 11-08-2025 03:37:29 PM.webm](https://github.com/user-attachments/assets/7b91b4cb-6cee-4ac1-8ea8-34ed50f9d3e8)
+
+
+
 
 ### Running RSL-RL Training
 
