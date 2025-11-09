@@ -21,18 +21,19 @@ DOFBOT_CONFIG = ArticulationCfg(
             max_depenetration_velocity=5.0,
         ),
         articulation_props=sim_utils.ArticulationRootPropertiesCfg(
-            enabled_self_collisions=True, solver_position_iteration_count=8, solver_velocity_iteration_count=0
+            enabled_self_collisions=True,
+            solver_position_iteration_count=8,
+            solver_velocity_iteration_count=0,
         ),
     ),
     init_state=ArticulationCfg.InitialStateCfg(
         joint_pos={
-            "L1_joint": 0.0,            
+            "L1_joint": 0.0,
             "L2_pre_joint": 0.0,
             "L3_pre_joint": 0.0,
             "R1_joint": 0.0,
             "R2_pre_joint": 0.0,
             "R3_pre_joint": 0.0,
-
         },
         pos=(0.25, -0.25, 2.0),
     ),
@@ -83,7 +84,6 @@ DOFBOT_CONFIG = ArticulationCfg(
 )
 
 
-
 @configclass
 class DexhandSingleEnvCfg(DirectRLEnvCfg):
     # env
@@ -99,9 +99,13 @@ class DexhandSingleEnvCfg(DirectRLEnvCfg):
 
     # robot(s)
     # robot_cfg: ArticulationCfg = CARTPOLE_CFG.replace(prim_path="/World/envs/env_.*/Robot")
-    robot_cfg: ArticulationCfg = DOFBOT_CONFIG.replace(prim_path="/World/envs/env_.*/Robot")
+    robot_cfg: ArticulationCfg = DOFBOT_CONFIG.replace(
+        prim_path="/World/envs/env_.*/Robot"
+    )
     # scene
-    scene: InteractiveSceneCfg = InteractiveSceneCfg(num_envs=4096, env_spacing=4.0, replicate_physics=True)
+    scene: InteractiveSceneCfg = InteractiveSceneCfg(
+        num_envs=4096, env_spacing=4.0, replicate_physics=True
+    )
 
     # custom parameters/scales
     # - controllable joint
@@ -136,10 +140,8 @@ class DexhandSingleEnvCfg(DirectRLEnvCfg):
     D2 = 0.012
     D3 = 0.015
     D4 = 0.010
-    L  = 0.045
-    S  = 0.006
+    L = 0.045
+    S = 0.006
 
     action_space_low = [0.012, 0.012, 0.012, 0.012, 0.012, 0.012]
     action_space_high = [0.027, 0.027, 0.027, 0.027, 0.027, 0.027]
-
-    
