@@ -8,11 +8,14 @@ This document explains how **RL-Games** and **RSL-RL** work in this codebase, th
 
 - [Overview](#overview)
 - [Prerequisites](#prerequisites)
+- [How RL Training Works](#how-rl-training-works)
 - [RL-Games Framework](#rl-games-framework)
 - [RSL-RL Framework](#rsl-rl-framework)
 - [Key Differences](#key-differences)
-- [Usage Examples](#usage-examples)
-- [When to Use Which](#when-to-use-which)
+- [Quick Start Guide](#quick-start-guide)
+- [Dexhand Single Training](#dexhand-single-training)
+- [Recording Videos](#recording-videos)
+- [Additional Resources](#additional-resources)
 
 ---
 
@@ -32,13 +35,259 @@ Both **RL-Games** and **RSL-RL** are reinforcement learning frameworks that inte
 
 ---
 
-## Prerequisites
+## How RL Training Works
 
-Before using either RL-Games or RSL-RL frameworks, ensure you have the proper environment setup:
+This section explains how reinforcement learning training works in this codebase, from the basic concepts to the actual implementation.
+
+### What is Reinforcement Learning?
+
+Reinforcement Learning (RL) is a type of machine learning where an **agent** learns to make decisions by interacting with an **environment**. The agent receives:
+- **Observations**: Information about the current state (e.g., joint positions, velocities)
+- **Rewards**: Feedback on how good/bad its actions are
+- **Actions**: Commands it can execute (e.g., motor torques)
+
+The goal is to learn a **policy** (a neural network) that maximizes cumulative rewards over time.
+
+### The RL Training Loop
+
+Here's how training works step-by-step:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    RL Training Loop                          │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  1. Initialize Environment                                   │
+│     └─> Create N parallel environments (e.g., 4096)        │
+│                                                              │
+│  2. Reset Environments                                      │
+│     └─> Get initial observations (obs)                      │
+│                                                              │
+│  3. Agent Decides Actions                                    │
+│     └─> Policy network: obs → actions                       │
+│                                                              │
+│  4. Execute Actions in Environment                           │
+│     └─> Step simulation forward                             │
+│     └─> Get new observations, rewards, done flags          │
+│                                                              │
+│  5. Store Experience                                        │
+│     └─> Save (obs, action, reward, next_obs, done)         │
+│                                                              │
+│  6. Learn from Experience (Periodically)                     │
+│     └─> Update policy network using collected data          │
+│     └─> Improve future decisions                             │
+│                                                              │
+│  7. Repeat from Step 2                                       │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Key Components in This Codebase
+
+#### 1. **Environment (Isaac Sim)**
+
+The environment is a physics simulation running in Isaac Sim:
+
+```python
+# Create environment with N parallel instances
+env = gym.make("Isaac-Cartpole-Direct-v0", cfg=env_cfg)
+# num_envs = 4096 means 4096 parallel simulations!
+```
+
+**Why parallel environments?**
+- **Speed**: Run thousands of simulations simultaneously on GPU
+- **Diversity**: Each environment can have different initial conditions
+- **Efficiency**: Collect more experience in less time
+
+**What the environment does:**
+- Simulates physics (cart moving, pole balancing)
+- Provides observations (cart position, pole angle, velocities)
+- Computes rewards (positive for balancing, negative for falling)
+- Returns done flags (episode finished when pole falls)
+
+#### 2. **Agent (Neural Network Policy)**
+
+The agent is a neural network that maps observations to actions:
+
+```python
+# Policy network architecture
+observations → [Neural Network] → actions
+     ↓                              ↓
+  (state info)              (motor commands)
+```
+
+**The policy learns:**
+- **What to do** in each situation
+- **How to maximize rewards** over time
+- **General strategies** that work across different scenarios
+
+#### 3. **Training Process**
+
+Here's what happens when you run `train.py`:
+
+```python
+# 1. Setup
+env = gym.make(task, cfg=env_cfg)  # Create environment
+runner = Runner()                  # Create RL trainer
+runner.load(agent_cfg)             # Load algorithm config
+
+# 2. Training loop (happens inside runner.run())
+for epoch in range(max_epochs):
+    # Collect experience
+    for step in range(horizon_length):
+        obs = env.get_observations()
+        actions = policy(obs)              # Agent decides
+        obs, rewards, dones = env.step(actions)  # Execute
+        
+        # Store experience
+        buffer.store(obs, actions, rewards, ...)
+    
+    # Learn from experience
+    for mini_epoch in range(mini_epochs):
+        batch = buffer.sample(minibatch_size)
+        loss = compute_loss(batch)
+        optimizer.step(loss)  # Update neural network
+```
+
+### How the Agent Learns
+
+The agent uses **Policy Gradient** methods (like PPO - Proximal Policy Optimization):
+
+1. **Collect Experience**: Run many episodes, storing (observation, action, reward)
+2. **Compute Advantages**: Estimate how good each action was compared to average
+3. **Update Policy**: Adjust neural network weights to:
+   - Increase probability of good actions
+   - Decrease probability of bad actions
+4. **Repeat**: Keep collecting new experience and improving
+
+**Example (Cartpole):**
+- **Bad action**: Pole falls → negative reward → Policy learns to avoid this
+- **Good action**: Pole stays balanced → positive reward → Policy learns to repeat this
+
+### Parallel Environments: The Key to Speed
+
+Isaac Sim's power comes from running **thousands of environments in parallel**:
+
+```
+Traditional RL:          Isaac Sim RL:
+┌─────────┐             ┌─────┬─────┬─────┬─────┐
+│ Env 1   │             │Env 1│Env 2│Env 3│ ... │
+│ (CPU)   │             │     │     │     │4096 │
+└─────────┘             └─────┴─────┴─────┴─────┘
+     ↓                        ↓ (all on GPU)
+  Slow!                   Super Fast!
+```
+
+**Benefits:**
+- **4096 environments** = 4096x more data per second
+- All run on **GPU** simultaneously
+- Training that would take days now takes hours
+
+### The Complete Training Workflow
+
+When you run:
+```bash
+python scripts/rl_games/train.py --task Isaac-Cartpole-Direct-v0 --num_envs 4096
+```
+
+Here's what happens:
+
+1. **Initialization** (one time):
+   - Launch Isaac Sim
+   - Create 4096 parallel cartpole environments
+   - Initialize neural network (random weights)
+   - Set up optimizer, buffers, etc.
+
+2. **Training Loop** (repeats for many epochs):
+   ```
+   Epoch 1:
+   - Run 4096 environments for 32 steps each
+   - Collect ~131,000 (obs, action, reward) tuples
+   - Update policy network 8 times using this data
+   - Save checkpoint
+   
+   Epoch 2:
+   - Agent is slightly better now
+   - Run environments again, collect new data
+   - Update policy again
+   - ...
+   
+   Epoch 150:
+   - Agent has learned to balance the pole!
+   - Training complete
+   ```
+
+3. **Learning Progress**:
+   - Early epochs: Agent is random, pole falls quickly
+   - Mid epochs: Agent starts learning, pole stays up longer
+   - Late epochs: Agent masters the task, consistently balances
+
+### Key Concepts
+
+#### **Observations**
+What the agent "sees":
+- Cart position, velocity
+- Pole angle, angular velocity
+- Any other relevant state information
+
+#### **Actions**
+What the agent "does":
+- Motor torques/forces to apply
+- Discrete choices (left/right) or continuous values
+
+#### **Rewards**
+Feedback signal:
+- **Positive**: Good behavior (pole balanced)
+- **Negative**: Bad behavior (pole fell)
+- **Zero**: Neutral state
+
+#### **Episodes**
+A complete trial:
+- Start: Reset environment to initial state
+- Middle: Agent acts, receives rewards
+- End: Episode terminates (pole falls, time limit, etc.)
+
+### Why This Approach Works
+
+1. **Trial and Error**: Agent tries many actions, learns which work
+2. **Reward Signal**: Clear feedback on what's good/bad
+3. **Parallel Exploration**: Thousands of environments = diverse experience
+4. **Neural Network**: Can learn complex patterns and generalize
+5. **Iterative Improvement**: Each epoch makes the agent slightly better
+
+### Example: Cartpole Training
+
+**Goal**: Balance a pole on a cart
+
+**Observations**: Cart position, pole angle, velocities  
+**Actions**: Force to apply to cart (left/right)  
+**Reward**: +1 for each step pole stays balanced, -100 if pole falls
+
+**Training Process**:
+1. **Epoch 1**: Random actions → Pole falls immediately → Average reward: ~20
+2. **Epoch 50**: Agent learning → Pole stays up longer → Average reward: ~150
+3. **Epoch 150**: Agent mastered → Pole balanced consistently → Average reward: ~280
+
+The neural network learns the relationship: "If pole tilts right, push cart right" through thousands of trials.
+
+### Summary
+
+RL training in this codebase:
+1. Creates **parallel environments** in Isaac Sim (GPU-accelerated)
+2. Uses a **neural network** to decide actions
+3. Collects **experience** (observations, actions, rewards)
+4. Updates the **policy** to maximize rewards
+5. Repeats until the agent learns the task
+
+The combination of **Isaac Sim's parallel simulation** + **RL algorithms** + **GPU acceleration** makes training very fast compared to traditional RL methods.
+
+---
+
+## Prerequisites
 
 ### Conda Environment
 
-This project uses the **`env_isaaclab`** conda environment. Make sure it's activated before running any training scripts:
+Activate the required conda environment:
 
 ```bash
 conda activate env_isaaclab
@@ -46,22 +295,19 @@ conda activate env_isaaclab
 
 ### Required Dependencies
 
-Install the required Python packages, including TensorBoard for logging and visualization:
+Install TensorBoard for logging and visualization:
 
 ```bash
-# Install TensorBoard (required for training logs and visualization)
-# 2.20.0
-pip install tensorboard 
+# Install TensorBoard (version 2.20.0)
+pip install tensorboard
 
-# Or if using Isaac Lab's environment manager
-./isaaclab.sh -p -m pip install tensorboard 
+# Or using Isaac Lab's environment manager
+./isaaclab.sh -p -m pip install tensorboard
 ```
 
-**Note**: TensorBoard is required for viewing training metrics and is used by both RL-Games and RSL-RL frameworks for logging. If you encounter a `ModuleNotFoundError: No module named 'tensorboard'`, install it using the command above.
+**Note**: If you encounter `ModuleNotFoundError: No module named 'tensorboard'`, install it using the command above.
 
 ### Verify Installation
-
-You can verify TensorBoard is installed correctly:
 
 ```bash
 python -c "import tensorboard; print(tensorboard.__version__)"
@@ -69,255 +315,189 @@ python -c "import tensorboard; print(tensorboard.__version__)"
 
 ---
 
+## How RL Training Works
+
+### Core Concept
+
+Reinforcement Learning (RL) trains an **agent** (neural network) to make decisions by interacting with an **environment**:
+
+- **Observations**: Current state (e.g., joint positions, velocities)
+- **Actions**: Commands to execute (e.g., motor torques)
+- **Rewards**: Feedback signal (positive for good behavior, negative for bad)
+
+**Goal**: Learn a policy that maximizes cumulative rewards.
+
+### Training Loop
+
+```
+1. Initialize → Create N parallel environments (e.g., 4096)
+2. Reset → Get initial observations
+3. Agent decides → Policy network: obs → actions
+4. Execute → Step simulation, get rewards
+5. Store → Save (obs, action, reward) tuples
+6. Learn → Update policy network periodically
+7. Repeat → Continue from step 2
+```
+
+### Why Parallel Environments?
+
+Isaac Sim runs **thousands of environments simultaneously on GPU**:
+
+- **4096 environments** = 4096x more data per second
+- Training that would take days now takes hours
+- Each environment can have different initial conditions for diversity
+
+### Learning Process
+
+The agent uses **Policy Gradient** methods (PPO):
+
+1. **Collect Experience**: Run episodes, store (observation, action, reward)
+2. **Compute Advantages**: Estimate action quality vs. average
+3. **Update Policy**: Adjust neural network to increase good actions, decrease bad ones
+4. **Repeat**: Continue collecting and improving
+
+**Example**: Cartpole agent learns "if pole tilts right, push cart right" through trial and error.
+
+---
+
 ## RL-Games Framework
 
-### What is RL-Games?
+### Overview
 
-RL-Games is a popular RL framework that uses **YAML-based configuration** and a **registry system** for environment management.
+RL-Games uses **YAML-based configuration** and a **registry system** for environment management.
 
-### Architecture
+### Key Components
 
-#### 1. **Configuration System**
-- Uses YAML files (e.g., `rl_games_ppo_cfg.yaml`)
-- Nested dictionary structure under `params` key
-- Configuration includes:
-  - Algorithm settings (`algo`)
-  - Model architecture (`model`, `network`)
-  - Training hyperparameters (`config`)
-  - Environment wrapper settings (`env`)
-
-#### 2. **Environment Registration**
-RL-Games requires registering your Isaac Lab environment in its internal registry:
-
-```python
-# Register environment wrapper
-vecenv.register(
-    "IsaacRlgWrapper", 
-    lambda config_name, num_actors, **kwargs: RlGamesGpuEnv(config_name, num_actors, **kwargs)
-)
-
-# Register environment configuration
-env_configurations.register(
-    "rlgpu",  # Must use "rlgpu" as env_name in config
-    {"vecenv_type": "IsaacRlgWrapper", "env_creator": lambda **kwargs: env}
-)
-```
-
-#### 3. **Training Flow**
-
-```python
-# 1. Create runner with observer
-runner = Runner(IsaacAlgoObserver())
-
-# 2. Load configuration from YAML
-runner.load(agent_cfg)
-
-# 3. Reset and train
-runner.reset()
-runner.run({"train": True, "play": False})
-```
+1. **Configuration**: YAML file with nested `params` structure
+2. **Environment Registration**: Must register as `"rlgpu"` in RL-Games registry
+3. **Training**: Uses `Runner` class with `IsaacAlgoObserver`
 
 ### Configuration Example
 
 ```yaml
 params:
   seed: 42
-  
-  # Environment wrapper settings
   env:
     clip_observations: 5.0
     clip_actions: 1.0
-  
-  # Algorithm selection
   algo:
     name: a2c_continuous
-  
-  # Model architecture
-  model:
-    name: continuous_a2c_logstd
-  
-  # Network configuration
-  network:
-    name: actor_critic
-    mlp:
-      units: [32, 32]
-      activation: elu
-  
-  # Training configuration
   config:
-    name: cartpole_direct
+    name: dexhand_single
     env_name: rlgpu  # Must be "rlgpu"
     device: 'cuda:0'
-    num_actors: -1  # Auto-set from num_envs
     max_epochs: 150
     learning_rate: 5e-4
-    gamma: 0.99
-    horizon_length: 32
-    minibatch_size: 32
-    mini_epochs: 8
-    # ... more PPO hyperparameters
+    # ... more hyperparameters
 ```
 
-### Key Features
+### Training Flow
 
-- ✅ **Multiple Algorithms**: Supports PPO, A2C, and other algorithms via config
-- ✅ **Flexible Configuration**: Easy to modify hyperparameters in YAML
-- ✅ **Custom Observer**: `IsaacAlgoObserver` for Isaac Sim integration
-- ⚠️ **Registry Required**: Must register environment as `"rlgpu"`
-- ⚠️ **Dictionary-based**: No type checking at development time
+```python
+# 1. Create runner
+runner = Runner(IsaacAlgoObserver())
+
+# 2. Load YAML config
+runner.load(agent_cfg)
+
+# 3. Train
+runner.reset()
+runner.run({"train": True, "play": False})
+```
+
+### Features
+
+- ✅ Multiple algorithms (PPO, A2C, etc.) via config
+- ✅ Flexible YAML configuration
+- ⚠️ Requires environment registry setup
+- ⚠️ No compile-time type checking
 
 ---
 
 ## RSL-RL Framework
 
-### What is RSL-RL?
+### Overview
 
-RSL-RL (Rapid Sim-to-Real Learning) is a framework designed for Isaac Sim with **Python-based configuration** and a **simpler, more direct API**.
+RSL-RL (Rapid Sim-to-Real Learning) uses **Python-based configuration** with a **simpler, direct API**.
 
-### Architecture
+### Key Components
 
-#### 1. **Configuration System**
-- Uses Python dataclasses/ConfigClass
-- Type-safe configuration with IDE autocomplete
-- Defined in Python files (e.g., `rsl_rl_ppo_cfg.py`)
-
-#### 2. **Direct Environment Wrapping**
-No registry needed - directly wrap the environment:
-
-```python
-env = RslRlVecEnvWrapper(env, clip_actions=agent_cfg.clip_actions)
-```
-
-#### 3. **Training Flow**
-
-```python
-# 1. Create runner directly
-runner = OnPolicyRunner(
-    env, 
-    agent_cfg.to_dict(), 
-    log_dir=log_dir, 
-    device=agent_cfg.device
-)
-
-# 2. Optional: Add git info to logs
-runner.add_git_repo_to_log(__file__)
-
-# 3. Load checkpoint if resuming
-if agent_cfg.resume:
-    runner.load(resume_path)
-
-# 4. Train
-runner.learn(num_learning_iterations=agent_cfg.max_iterations)
-```
+1. **Configuration**: Python dataclass/ConfigClass (type-safe)
+2. **Environment Wrapping**: Direct wrapper, no registry needed
+3. **Training**: Uses `OnPolicyRunner` class
 
 ### Configuration Example
 
 ```python
 @configclass
 class PPORunnerCfg(RslRlOnPolicyRunnerCfg):
-    """Configuration for PPO agent."""
-    
-    # Experiment settings
     experiment_name: str = "dexhand_single"
-    run_name: str = ""
     max_iterations: int = 150
     seed: int = 42
-    
-    # Device and environment
     device: str = "cuda:0"
-    clip_actions: float = 1.0
-    
-    # Algorithm configuration
-    algorithm: PPOAlgorithmCfg = PPOAlgorithmCfg(
-        name="ppo",
-        value_loss_coef=2.0,
-        use_clipped_value_loss=True,
-        clip_param=0.2,
-        entropy_coef=0.0,
-        num_learning_epochs=8,
-        num_mini_batches=32,
-        # ... more settings
-    )
-    
-    # Policy network
+    algorithm: PPOAlgorithmCfg = PPOAlgorithmCfg(...)
     policy: ActorCriticCfg = ActorCriticCfg(...)
 ```
 
-### Key Features
+### Training Flow
 
-- ✅ **Type Safety**: Compile-time type checking with dataclasses
-- ✅ **Simple API**: Direct runner creation, no registry needed
-- ✅ **IDE Support**: Autocomplete and type hints
-- ✅ **Built-in Logging**: Git state tracking included
-- ✅ **Cleaner Code**: More Pythonic approach
+```python
+# 1. Create runner directly
+runner = OnPolicyRunner(env, agent_cfg.to_dict(), log_dir=log_dir)
+
+# 2. Train
+runner.learn(num_learning_iterations=agent_cfg.max_iterations)
+```
+
+### Features
+
+- ✅ Type-safe configuration (IDE autocomplete)
+- ✅ Simpler API (no registry)
+- ✅ Built-in git state tracking
+- ✅ More Pythonic code
 
 ---
 
 ## Key Differences
 
-### 1. **Configuration Style**
-
-**RL-Games (YAML):**
-```yaml
-params:
-  config:
-    learning_rate: 5e-4
-    max_epochs: 150
-```
-
-**RSL-RL (Python):**
-```python
-@configclass
-class Config:
-    learning_rate: float = 5e-4
-    max_iterations: int = 150
-```
-
-### 2. **Environment Setup**
-
-**RL-Games:**
-```python
-# Requires registration
-env = RlGamesVecEnvWrapper(env, rl_device, clip_obs, clip_actions)
-env_configurations.register("rlgpu", {"env_creator": lambda **kwargs: env})
-```
-
-**RSL-RL:**
-```python
-# Direct wrapping
-env = RslRlVecEnvWrapper(env, clip_actions=agent_cfg.clip_actions)
-```
-
-### 3. **Runner Creation**
-
-**RL-Games:**
-```python
-runner = Runner(IsaacAlgoObserver())
-runner.load(agent_cfg)  # Load from dict
-```
-
-**RSL-RL:**
-```python
-runner = OnPolicyRunner(env, agent_cfg.to_dict(), log_dir=log_dir)
-```
-
-### 4. **Training Method**
-
-**RL-Games:**
-```python
-runner.run({"train": True, "play": False})
-```
-
-**RSL-RL:**
-```python
-runner.learn(num_learning_iterations=agent_cfg.max_iterations)
-```
+| Feature | RL-Games | RSL-RL |
+|---------|----------|--------|
+| **Config** | YAML (dictionary) | Python (dataclass) |
+| **Environment Setup** | Registry required | Direct wrapper |
+| **Runner Creation** | `Runner().load(config)` | `OnPolicyRunner(env, config)` |
+| **Training Method** | `runner.run()` | `runner.learn()` |
+| **Type Safety** | Runtime | Compile-time |
 
 ---
 
-## Usage Examples
+## Quick Start Guide
 
-### Running RL-Games Training
+### Finding Your Checkpoint Paths
+
+**Step 1: List experiments**
+```bash
+ls logs/rl_games/  # or logs/rsl_rl/
+```
+
+**Step 2: List training runs** (timestamp directories = log directories)
+```bash
+ls logs/rl_games/{experiment_name}/
+# Example: 2025-11-08_15-30-10
+```
+
+**Step 3: Check available checkpoints**
+```bash
+ls logs/rl_games/{experiment_name}/{timestamp}/nn/
+```
+
+**Quick tip**: Get most recent checkpoint
+```bash
+ls -t logs/rl_games/{experiment_name}/*/nn/*.pth | head -1
+```
+
+### Training Commands
+
+#### RL-Games
 
 ```bash
 # Basic training
@@ -325,10 +505,10 @@ python scripts/rl_games/train.py \
     --task Isaac-Cartpole-Direct-v0 \
     --num_envs 4096
 
-# With custom checkpoint
+# Resume from checkpoint (creates new log directory)
 python scripts/rl_games/train.py \
     --task Isaac-Cartpole-Direct-v0 \
-    --checkpoint logs/rl_games/cartpole_direct/2024-01-01_12-00-00/nn/cartpole_direct.pth
+    --checkpoint logs/rl_games/cartpole_direct/{timestamp}/nn/cartpole_direct.pth
 
 # With video recording
 python scripts/rl_games/train.py \
@@ -336,14 +516,8 @@ python scripts/rl_games/train.py \
     --video \
     --video_interval 2000
 ```
-[Screencast from 11-08-2025 03:32:35 PM.webm](https://github.com/user-attachments/assets/1fae4344-a282-49c4-89c6-de5099e02a33)
 
-[Screencast from 11-08-2025 03:37:29 PM.webm](https://github.com/user-attachments/assets/7b91b4cb-6cee-4ac1-8ea8-34ed50f9d3e8)
-
-
-
-
-### Running RSL-RL Training
+#### RSL-RL
 
 ```bash
 # Basic training
@@ -355,164 +529,235 @@ python scripts/rsl_rl/train.py \
 python scripts/rsl_rl/train.py \
     --task Isaac-Cartpole-Direct-v0 \
     --resume \
-    --load_run 2024-01-01_12-00-00
+    --load_run {timestamp}
+```
 
-# With custom iterations
+### Evaluation Commands
+
+```bash
+# Test trained model (RL-Games)
+python scripts/rl_games/play.py \
+    --task Isaac-Cartpole-Direct-v0 \
+    --checkpoint logs/rl_games/cartpole_direct/{timestamp}/nn/cartpole_direct.pth \
+    --num_envs 1
+
+# Record evaluation video
+python scripts/rl_games/play.py \
+    --task Isaac-Cartpole-Direct-v0 \
+    --checkpoint logs/rl_games/cartpole_direct/{timestamp}/nn/cartpole_direct.pth \
+    --video \
+    --video_length 500
+```
+
+**Note**: Replace `{timestamp}` and `{experiment_name}` with your actual values. See [Finding Your Checkpoint Paths](#finding-your-checkpoint-paths) above.
+
+---
+
+## Dexhand Single Training
+
+### Task Overview
+
+**Environment**: `Template-Dexhand-Single-Direct-v0`
+
+**Objective**: Control a dexterous hand with 6 DOF (L1, L2, L3, R1, R2, R3 joints) to maintain stable joint positions near rest state.
+
+**Specifications**:
+- **Actions**: Cable lengths (0.012m to 0.027m) for each joint
+- **Observations**: Current joint positions (6 values)
+- **Episode length**: 5.0 seconds (~600 steps at 120 Hz)
+
+### Training Commands
+
+```bash
+# RL-Games
+python scripts/rl_games/train.py \
+    --task Template-Dexhand-Single-Direct-v0 \
+    --num_envs 4096
+
+# RSL-RL
+python scripts/rsl_rl/train.py \
+    --task Template-Dexhand-Single-Direct-v0 \
+    --num_envs 4096
+```
+
+### Success Definition
+
+The reward function defines success:
+
+**Reward Components**:
+1. **Alive Reward** (`+1.0` per step): Episode not terminated
+2. **Termination Penalty** (`-2.0`): Early termination
+3. **Joint Position Penalties** (`-1.0 × joint_angle²`): Deviation from zero for each of 6 joints
+
+**Total Reward Formula**:
+```
+Reward = (1.0 × alive) + (-2.0 × terminated) + 
+         Σ(-1.0 × joint_angle²) for all 6 joints
+```
+
+**Success Criteria**:
+- ✅ Keep all 6 joints near zero (rest position)
+- ✅ Avoid early termination (stay within ±π/2 for L2-L3, R1-R3; ±3.0 for L1)
+- ✅ Complete full 5-second episodes
+
+**Reward Interpretation**:
+- **Maximum**: ~600 (all joints at 0, full episode)
+- **High (>250)**: ✅ Excellent - Stable, joints near rest
+- **Medium (150-250)**: ⚠️ Acceptable - Some deviation
+- **Low (<150)**: ❌ Poor - Significant deviation or early termination
+
+**Example**: Reward of **~268.8** indicates good performance - hand maintains stability with joints near rest positions.
+
+### Evaluation
+
+```bash
+# Test trained model
+python scripts/rl_games/play.py \
+    --task Template-Dexhand-Single-Direct-v0 \
+    --checkpoint logs/rl_games/dexhand_single/{timestamp}/nn/dexhand_single.pth \
+    --num_envs 1
+
+# Record video
+python scripts/rl_games/play.py \
+    --task Template-Dexhand-Single-Direct-v0 \
+    --checkpoint logs/rl_games/dexhand_single/{timestamp}/nn/dexhand_single.pth \
+    --video \
+    --video_length 1000
+```
+
+### Configuration Files
+
+- **RL-Games**: `source/Dexhand_single/.../agents/rl_games_ppo_cfg.yaml`
+- **RSL-RL**: `source/Dexhand_single/.../agents/rsl_rl_ppo_cfg.py`
+- **Environment**: `source/Dexhand_single/.../dexhand_single_env_cfg.py`
+
+### Dexhand Training Videos
+
+#### Training Progress
+
+<!-- Early training -->
+![Early Training](logs/rl_games/dexhand_single/{timestamp}/videos/train/rl-video-episode-0.mp4)
+
+<!-- Mid training -->
+![Mid Training](logs/rl_games/dexhand_single/{timestamp}/videos/train/rl-video-episode-2000.mp4)
+
+#### Final Evaluation
+
+<!-- Evaluation video -->
+![Dexhand Evaluation](logs/rl_games/dexhand_single/{timestamp}/videos/play/rl-video-episode-0.mp4)
+
+**To add videos**: Replace `{timestamp}` with your actual run timestamp (e.g., `2025-11-08_23-38-40`), or use GitHub video URLs:
+
+```markdown
+https://github.com/user-attachments/assets/{video_id}
+```
+
+---
+
+## Recording Videos
+
+### During Training
+
+```bash
+# Record videos periodically during training
+python scripts/rl_games/train.py \
+    --task Isaac-Cartpole-Direct-v0 \
+    --num_envs 4096 \
+    --video \
+    --video_length 200 \
+    --video_interval 2000
+```
+
+**Parameters:**
+- `--video`: Enable video recording
+- `--video_length`: Number of steps to record per video (default: 200)
+- `--video_interval`: Record a video every N steps (default: 2000)
+
+**Video Location:**
+```
+logs/rl_games/{experiment_name}/{timestamp}/videos/train/
+└── rl-video-episode-{step}.mp4
+```
+
+#### RSL-RL
+
+```bash
+# Record videos during training
 python scripts/rsl_rl/train.py \
     --task Isaac-Cartpole-Direct-v0 \
-    --max_iterations 500
+    --num_envs 4096 \
+    --video \
+    --video_length 200 \
+    --video_interval 2000
 ```
 
-### Complete Code Example: RL-Games
+**Parameters**:
+- `--video`: Enable recording
+- `--video_length`: Steps per video (default: 200)
+- `--video_interval`: Record every N steps (default: 2000)
 
-```python
-# 1. Launch Isaac Sim
-app_launcher = AppLauncher(args_cli)
-simulation_app = app_launcher.app
+### During Evaluation
 
-# 2. Load configurations (via Hydra)
-@hydra_task_config(args_cli.task, "rl_games_cfg_entry_point")
-def main(env_cfg, agent_cfg):
-    # 3. Create environment
-    env = gym.make(args_cli.task, cfg=env_cfg)
-    
-    # 4. Wrap for RL-Games
-    env = RlGamesVecEnvWrapper(env, rl_device, clip_obs, clip_actions)
-    
-    # 5. Register environment
-    env_configurations.register("rlgpu", {"env_creator": lambda **kwargs: env})
-    
-    # 6. Create and configure runner
-    runner = Runner(IsaacAlgoObserver())
-    runner.load(agent_cfg)
-    
-    # 7. Train
-    runner.run({"train": True})
+```bash
+# Record evaluation video
+python scripts/rl_games/play.py \
+    --task Isaac-Cartpole-Direct-v0 \
+    --checkpoint logs/rl_games/cartpole_direct/{timestamp}/nn/cartpole_direct.pth \
+    --video \
+    --video_length 500
 ```
 
-### Complete Code Example: RSL-RL
+### Video Locations
 
-```python
-# 1. Launch Isaac Sim
-app_launcher = AppLauncher(args_cli)
-simulation_app = app_launcher.app
+- **Training**: `logs/{framework}/{experiment}/{timestamp}/videos/train/`
+- **Evaluation**: `logs/{framework}/{experiment}/{timestamp}/videos/play/`
 
-# 2. Load configurations (via Hydra)
-@hydra_task_config(args_cli.task, "rsl_rl_cfg_entry_point")
-def main(env_cfg, agent_cfg):
-    # 3. Create environment
-    env = gym.make(args_cli.task, cfg=env_cfg)
-    
-    # 4. Wrap for RSL-RL
-    env = RslRlVecEnvWrapper(env, clip_actions=agent_cfg.clip_actions)
-    
-    # 5. Create runner
-    runner = OnPolicyRunner(env, agent_cfg.to_dict(), log_dir=log_dir)
-    
-    # 6. Train
-    runner.learn(num_learning_iterations=agent_cfg.max_iterations)
+### Embedding Videos in README
+
+**GitHub Video Format** (recommended):
+
+```markdown
+https://github.com/user-attachments/assets/{video_id}
 ```
 
----
+**Example Videos**:
 
-## When to Use Which
+Cartpole training demonstration:
 
-### Use **RL-Games** if:
+https://github.com/user-attachments/assets/1fae4344-a282-49c4-89c6-de5099e02a33
 
-- ✅ You prefer **YAML configuration** files
-- ✅ You need to **switch between multiple algorithms** easily
-- ✅ You're **migrating from existing RL-Games projects**
-- ✅ You want **flexible hyperparameter tuning** via config files
-- ✅ You're comfortable with **dictionary-based configurations**
+Cartpole evaluation:
 
-### Use **RSL-RL** if:
+```bash
+# 1. Train with periodic video recording
+python scripts/rl_games/train.py \
+    --task Isaac-Cartpole-Direct-v0 \
+    --num_envs 4096 \
+    --video \
+    --video_interval 5000
 
-- ✅ You prefer **Python-based, type-safe configurations**
-- ✅ You want **IDE autocomplete and type checking**
-- ✅ You prefer a **simpler, more direct API**
-- ✅ You want **cleaner, more maintainable code**
-- ✅ You're starting a **new project** from scratch
-
----
-
-## File Structure
-
-### RL-Games Files
-
+# 2. After training, record a high-quality evaluation video
+python scripts/rl_games/play.py \
+    --task Isaac-Cartpole-Direct-v0 \
+    --checkpoint logs/rl_games/cartpole_direct/{timestamp}/nn/cartpole_direct.pth \
+    --video \
+    --video_length 1000 \
+    --num_envs 1
 ```
-scripts/rl_games/
-├── train.py          # Training script
-├── play.py           # Evaluation script
-└── ...
-
-source/Dexhand_single/.../agents/
-└── rl_games_ppo_cfg.yaml  # Agent configuration
-```
-
-### RSL-RL Files
-
-```
-scripts/rsl_rl/
-├── train.py          # Training script
-├── play.py           # Evaluation script
-├── cli_args.py       # CLI argument handling
-└── ...
-
-source/Dexhand_single/.../agents/
-└── rsl_rl_ppo_cfg.py  # Agent configuration (Python)
-```
-
----
-
-## Logging
-
-Both frameworks save logs to similar directory structures:
-
-### RL-Games Logs
-```
-logs/rl_games/
-└── {experiment_name}/
-    └── {timestamp}/
-        ├── params/
-        │   ├── env.yaml
-        │   ├── agent.yaml
-        │   ├── env.pkl
-        │   └── agent.pkl
-        ├── nn/
-        │   └── {checkpoint}.pth
-        └── summaries/
-```
-
-### RSL-RL Logs
-```
-logs/rsl_rl/
-└── {experiment_name}/
-    └── {timestamp}_{run_name}/
-        ├── params/
-        │   ├── env.yaml
-        │   ├── agent.yaml
-        │   ├── env.pkl
-        │   └── agent.pkl
-        ├── model_{iteration}.pt
-        └── progress.csv
-```
-
----
-
-## Summary
-
-Both **RL-Games** and **RSL-RL** are powerful frameworks for training RL agents in Isaac Sim. The main differences are:
-
-- **RL-Games**: YAML configs, registry-based, more flexible for multiple algorithms
-- **RSL-RL**: Python configs, direct API, type-safe, simpler code
-
-Choose based on your preference for configuration style and API complexity. Both work seamlessly with Isaac Lab environments!
 
 ---
 
 ## Additional Resources
 
-- [RL-Games Documentation](https://github.com/Denys88/rl_games)
-- [RSL-RL Documentation](https://github.com/leggedrobotics/rsl_rl)
-- [Isaac Lab Documentation](https://isaac-sim.github.io/IsaacLab/)
+**Note**: When `--video` is enabled, cameras are automatically enabled in the environment. Make sure your task configuration includes camera sensors if you want to record visual observations.
 
+---
+
+## Summary
+
+Both **RL-Games** and **RSL-RL** are powerful frameworks for training RL agents in Isaac Sim:
+
+- **RL-Games**: YAML configs, registry-based, flexible for multiple algorithms
+- **RSL-RL**: Python configs, direct API, type-safe, simpler code
+
+Choose based on your preference for configuration style and API complexity. Both work seamlessly with Isaac Lab environments!
