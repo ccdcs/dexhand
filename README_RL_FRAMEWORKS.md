@@ -722,9 +722,17 @@ https://github.com/user-attachments/assets/{video_id}
 
 **Example Videos**:
 
-Cartpole training demonstration:
+Cartpole training to result demonstration:
 
 https://github.com/user-attachments/assets/1fae4344-a282-49c4-89c6-de5099e02a33
+
+[Screencast from 11-08-2025 03:37:29 PM.webm](https://github.com/user-attachments/assets/8a63037d-7bf9-4ffc-af26-bfe2f41a2ea8)
+
+
+Dexhand training and play demonstration:
+
+[Screencast from 11-08-2025 11:48:39 PM.webm](https://github.com/user-attachments/assets/b0403223-865e-47b1-8f12-f8a26942cf2e)
+
 
 Cartpole evaluation:
 
