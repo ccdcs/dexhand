@@ -84,7 +84,7 @@ DOFBOT_CONFIG = ArticulationCfg(
 
 
 @configclass
-class DexhandSingleEnvCfg(DirectRLEnvCfg):
+class TargetPoseEnvCfg(DirectRLEnvCfg):
     # env
     decimation = 2
     episode_length_s = 5.0

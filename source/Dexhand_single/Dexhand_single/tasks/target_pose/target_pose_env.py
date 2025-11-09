@@ -15,17 +15,15 @@ from isaaclab.envs import DirectRLEnv
 from isaaclab.sim.spawners.from_files import GroundPlaneCfg, spawn_ground_plane
 from isaaclab.utils.math import sample_uniform
 
-from .dexhand_single_env_cfg import DexhandSingleEnvCfg
+from .target_pose_env_cfg import TargetPoseEnvCfg
 from .kinematics.compute_joint import compute_jacobian, inverse_kinematics_with_jacobian
 from .kinematics.compliance_utils import compliance_cl
 
 
 class TargetPoseEnv(DirectRLEnv):
-    cfg: DexhandSingleEnvCfg
+    cfg: TargetPoseEnvCfg
 
-    def __init__(
-        self, cfg: DexhandSingleEnvCfg, render_mode: str | None = None, **kwargs
-    ):
+    def __init__(self, cfg: TargetPoseEnvCfg, render_mode: str | None = None, **kwargs):
         self.target_joint_pos = torch.zeros(
             (cfg.scene.num_envs, 6), device=cfg.sim.device
         )
