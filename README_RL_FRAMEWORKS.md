@@ -548,6 +548,12 @@ python scripts/rl_games/play.py \
     --video \
     --video_length 500
 ```
+# Evaluation model (RSL_RL)
+
+python scripts/rsl_rl/play.py --task Isaac-Cartpole-Direct-v0 --checkpoint logs/rsl_rl/cartpole_direct/2025-11-10_16-53-31/model_149.pt --num_envs 1 --video --video_length 1000
+
+<img width="1148" height="579" alt="Screenshot 2025-11-10 at 5 06 14 PM" src="https://github.com/user-attachments/assets/98701d87-80db-41b6-b915-13e25db012a7" />
+
 
 **Note**: Replace `{timestamp}` and `{experiment_name}` with your actual values. See [Finding Your Checkpoint Paths](#finding-your-checkpoint-paths) above.
 
