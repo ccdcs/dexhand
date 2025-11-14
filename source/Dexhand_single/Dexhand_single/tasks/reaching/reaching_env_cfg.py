@@ -4,19 +4,36 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 
-from isaaclab.assets import ArticulationCfg
+from isaaclab.assets import ArticulationCfg, AssetCfg
 from isaaclab.envs import DirectRLEnvCfg
-from isaaclab.scene import InteractiveSceneCfg
-from isaaclab.sim import SimulationCfg
+from isaaclab.scene import InteractiveSceneCfg, SceneObjectCfg
+from isaaclab.sim import SimulationCfg, SphereCfg
 from isaaclab.utils import configclass
 import isaaclab.sim as sim_utils
-from isaaclab.actuators import ImplicitActuatorCfg
+
+
+TARGET_CFG = SceneObjectCfg(
+    prim_path="/World/envs/env_.*/target",
+    spawn=SphereCfg(
+        radius=0.05,
+        rigid_props=sim_utils.RigidBodyPropertiesCfg(
+            kinematic_enabled=True,
+        ),
+        visual_material=sim_utils.VisualMaterialCfg(
+            diffuse_color=(1.0, 0.0, 0.0)
+        ),
+    ),
+    init_state=SceneObjectCfg.InitialStateCfg(
+        pos=(0.5, 0.0, 0.5),
+    ),
+)
 
 DOFBOT_CONFIG = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(
         usd_path="assets/limit_1.57/Assem_DexCo_2/Assem_DexCo_2/Assem_DexCo_2.usd",
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
-            disable_gravity=False,
+            kinematic_enabled=True,
+            disable_gravity=True,
             max_depenetration_velocity=5.0,
         ),
         articulation_props=sim_utils.ArticulationRootPropertiesCfg(
@@ -34,52 +51,8 @@ DOFBOT_CONFIG = ArticulationCfg(
             "R2_pre_joint": 0.0,
             "R3_pre_joint": 0.0,
         },
-        pos=(0.25, -0.25, 2.0),
+        pos=(0.0, 0.0, 0.7),
     ),
-    actuators={
-        "L1_act": ImplicitActuatorCfg(
-            joint_names_expr=["L1_joint"],
-            effort_limit_sim=100.0,
-            velocity_limit_sim=100.0,
-            stiffness=500.0,
-            damping=500.0,
-        ),
-        "L2_act": ImplicitActuatorCfg(
-            joint_names_expr=["L2_pre_joint"],
-            effort_limit_sim=100.0,
-            velocity_limit_sim=100.0,
-            stiffness=500.0,
-            damping=500.0,
-        ),
-        "L3_act": ImplicitActuatorCfg(
-            joint_names_expr=["L3_pre_joint"],
-            effort_limit_sim=100.0,
-            velocity_limit_sim=100.0,
-            stiffness=500.0,
-            damping=500.0,
-        ),
-        "R1_act": ImplicitActuatorCfg(
-            joint_names_expr=["R1_joint"],
-            effort_limit_sim=100.0,
-            velocity_limit_sim=100.0,
-            stiffness=500.0,
-            damping=500.0,
-        ),
-        "R2_act": ImplicitActuatorCfg(
-            joint_names_expr=["R2_pre_joint"],
-            effort_limit_sim=100.0,
-            velocity_limit_sim=100.0,
-            stiffness=500.0,
-            damping=500.0,
-        ),
-        "R3_act": ImplicitActuatorCfg(
-            joint_names_expr=["R3_pre_joint"],
-            effort_limit_sim=100.0,
-            velocity_limit_sim=100.0,
-            stiffness=500.0,
-            damping=500.0,
-        ),
-    },
 )
 
 
