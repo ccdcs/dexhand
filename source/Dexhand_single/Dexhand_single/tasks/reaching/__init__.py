@@ -13,7 +13,7 @@ from . import agents
 
 
 gym.register(
-    id="Reaching-v0",
+    id="Reaching",
     entry_point=f"{__name__}.reaching_env:ReachingEnv",
     disable_env_checker=True,
     kwargs={
