@@ -16,8 +16,6 @@ from isaaclab.sim.spawners.from_files import GroundPlaneCfg, spawn_ground_plane
 from isaaclab.utils.math import sample_uniform
 
 from .target_pose_env_cfg import TargetPoseEnvCfg
-from .kinematics.compute_joint import compute_jacobian, inverse_kinematics_with_jacobian
-from .kinematics.compliance_utils import compliance_cl
 
 
 class TargetPoseEnv(DirectRLEnv):
