@@ -40,7 +40,7 @@ class ReachingEnv(DirectRLEnv):
         self.test_count = 0
 
     def _setup_scene(self):
-        self.robot = Articulation(self.cfg.robot_cfg)
+        self.robot = Articulation(self.cfg.robot)
         # add ground plane
         spawn_ground_plane(prim_path="/World/ground", cfg=GroundPlaneCfg())
         # clone and replicate
