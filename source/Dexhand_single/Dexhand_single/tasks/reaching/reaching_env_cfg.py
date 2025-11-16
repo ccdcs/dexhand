@@ -51,7 +51,50 @@ DEXHAND_CFG = ArticulationCfg(
         },
         pos=(0.0, 0.0, 0.7),
     ),
-    actuators={},
+    actuators={
+        "L1_act": ImplicitActuatorCfg(
+            joint_names_expr=["L1_joint"],
+            effort_limit_sim=100.0,
+            velocity_limit_sim=100.0,
+            stiffness=500.0,
+            damping=500.0,
+        ),
+        "L2_act": ImplicitActuatorCfg(
+            joint_names_expr=["L2_pre_joint"],
+            effort_limit_sim=100.0,
+            velocity_limit_sim=100.0,
+            stiffness=500.0,
+            damping=500.0,
+        ),
+        "L3_act": ImplicitActuatorCfg(
+            joint_names_expr=["L3_pre_joint"],
+            effort_limit_sim=100.0,
+            velocity_limit_sim=100.0,
+            stiffness=500.0,
+            damping=500.0,
+        ),
+        "R1_act": ImplicitActuatorCfg(
+            joint_names_expr=["R1_joint"],
+            effort_limit_sim=100.0,
+            velocity_limit_sim=100.0,
+            stiffness=500.0,
+            damping=500.0,
+        ),
+        "R2_act": ImplicitActuatorCfg(
+            joint_names_expr=["R2_pre_joint"],
+            effort_limit_sim=100.0,
+            velocity_limit_sim=100.0,
+            stiffness=500.0,
+            damping=500.0,
+        ),
+        "R3_act": ImplicitActuatorCfg(
+            joint_names_expr=["R3_pre_joint"],
+            effort_limit_sim=100.0,
+            velocity_limit_sim=100.0,
+            stiffness=500.0,
+            damping=500.0,
+        ),
+    },
 )
 
 
@@ -81,10 +124,13 @@ class ReachingEnvCfg(DirectRLEnvCfg):
     # - reward scales
     rew_scale_alive = 1.0
     rew_scale_terminated = -2.0
-    rew_scale_dist = -2.0
+    rew_scale_potential = 10.0  # coefficient for the potential-based distance reward
     rew_scale_success = 5.0
     # - action penalty
-    action_penalty = -0.01
+    action_penalty = -0.001
+    # - action scales
+    action_scale_pos = 0.1  # [m]
+    action_scale_rot = 0.1  # [rad]
     # - reset states/conditions
     workspace = [(-1.0, -1.0, 0.0), (1.0, 1.0, 1.0)]
     success_tolerance = 0.05
