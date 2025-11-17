@@ -1,0 +1,223 @@
+<?xml version="1.0" encoding="utf-8"?>
+<robot xmlns:xacro="http://wiki.ros.org/xacro">
+  <xacro:macro name="dabai_dcw2" params="prefix">
+    <link name="${prefix}bottom_screw_frame">
+      <inertial>
+        <origin xyz="0.00753601137002364 -0.000508837515662511 0.0122696825103624" rpy="0 0 0"/>
+        <mass value="0.0145098733371325"/>
+        <inertia ixx="1.31154092579587E-05" ixy="2.30174744915791E-07" ixz="-1.33602201591692E-09" iyy="1.37294183645858E-06" iyz="-1.54099158222408E-08" izz="1.23744229267791E-05"/>
+      </inertial>
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://cx002_description/meshes/orbbec_dabai_dcw2/camera_bottom_screw_frame.STL"/>
+        </geometry>
+        <material name="">
+          <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1"/>
+        </material>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://cx002_description/meshes/orbbec_dabai_dcw2/camera_bottom_screw_frame.STL"/>
+        </geometry>
+      </collision>
+    </link>
+    <link name="${prefix}link">
+      <inertial>
+        <origin xyz="0.000779464384618848 0.00580251423448562 0.0124458502728532" rpy="0 0 0"/>
+        <mass value="0.00671888510767732"/>
+        <inertia ixx="3.01293153853197E-06" ixy="2.40333600558122E-08" ixz="4.54286282508884E-09" iyy="3.06507725447966E-07" iyz="8.9126125587526E-09" izz="2.88108379431653E-06"/>
+      </inertial>
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://cx002_description/meshes/orbbec_dabai_dcw2/camera_link.STL"/>
+        </geometry>
+        <material name="">
+          <color rgba="1 1 1 1"/>
+        </material>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://cx002_description/meshes/orbbec_dabai_dcw2/camera_link.STL"/>
+        </geometry>
+      </collision>
+    </link>
+    <joint name="${prefix}joint" type="fixed">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <parent link="${prefix}bottom_screw_frame"/>
+      <child link="${prefix}link"/>
+      <axis xyz="0 0 0"/>
+    </joint>
+    <link name="${prefix}infra2_frame">
+      <inertial>
+        <origin xyz="0.00215231622805329 2.59649261674655E-08 -3.21639014410014E-08" rpy="0 0 0"/>
+        <mass value="0.000275226856772834"/>
+        <inertia ixx="3.08047688060934E-09" ixy="-2.94969000144517E-15" ixz="3.6528725849673E-15" iyy="1.92908990518636E-09" iyz="2.50412547541003E-14" izz="1.92907796037669E-09"/>
+      </inertial>
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://cx002_description/meshes/orbbec_dabai_dcw2/camera_right_IR_ROS_frame.STL"/>
+        </geometry>
+        <material name="">
+          <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1"/>
+        </material>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://cx002_description/meshes/orbbec_dabai_dcw2/camera_right_IR_ROS_frame.STL"/>
+        </geometry>
+      </collision>
+    </link>
+    <joint name="${prefix}right_IR_frame_joint" type="fixed">
+      <origin xyz="0.01258 -0.02 0.0123" rpy="0 0 0"/>
+      <parent link="${prefix}link"/>
+      <child link="${prefix}infra2_frame"/>
+      <axis xyz="0 0 0"/>
+    </joint>
+    <link name="${prefix}infra2_optical_frame"/>
+    <joint name="${prefix}infra2_optical_frame_joint" type="fixed">
+      <origin xyz="0 0 0" rpy="-1.5707963267949 0 -1.5707963267949" />
+      <parent link="${prefix}infra2_frame" />
+      <child link="${prefix}infra2_optical_frame" />
+      <axis xyz="0 0 0" />
+    </joint>
+    <link name="${prefix}infra1_frame">
+      <inertial>
+        <origin xyz="0.00215231622805329 2.59649261709349E-08 -3.21639014402143E-08" rpy="0 0 0"/>
+        <mass value="0.000275226856772835"/>
+        <inertia ixx="3.08047688060934E-09" ixy="-2.94969000106677E-15" ixz="3.65287258472025E-15" iyy="1.92908990518636E-09" iyz="2.50412547533984E-14" izz="1.92907796037669E-09"/>
+      </inertial>
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://cx002_description/meshes/orbbec_dabai_dcw2/camera_left_IR_ROS_frame.STL"/>
+        </geometry>
+        <material name="">
+          <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1"/>
+        </material>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://cx002_description/meshes/orbbec_dabai_dcw2/camera_left_IR_ROS_frame.STL"/>
+        </geometry>
+      </collision>
+    </link>
+    <joint name="${prefix}left_IR_ROS_frame_joint" type="fixed">
+      <origin xyz="0.01258 0.02 0.0123" rpy="0 0 0"/>
+      <parent link="${prefix}link"/>
+      <child link="${prefix}infra1_frame"/>
+      <axis xyz="0 0 0"/>
+    </joint>
+    <link name="${prefix}infra1_optical_frame"/>
+    <joint name="${prefix}infra1_optical_frame_joint" type="fixed">
+      <origin xyz="0 0 0" rpy="-1.5707963267949 0 -1.5707963267949" />
+      <parent link="${prefix}infra1_frame" />
+      <child link="${prefix}infra1_optical_frame" />
+      <axis xyz="0 0 0" />
+    </joint>
+    <link name="${prefix}color_frame">
+      <inertial>
+        <origin xyz="0.00113097254878149 -2.06072749905917E-08 -1.02739299139143E-14" rpy="0 0 0"/>
+        <mass value="7.23060568782203E-05"/>
+        <inertia ixx="3.05091809046364E-10" ixy="1.87866285644504E-15" ixz="6.59066094191097E-22" iyy="2.02503175970632E-10" iyz="7.98910742316642E-23" izz="2.02503175941704E-10"/>
+      </inertial>
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://cx002_description/meshes/orbbec_dabai_dcw2/camera_RGB_IR_ROS_frame.STL"/>
+        </geometry>
+        <material name="">
+          <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1"/>
+        </material>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://cx002_description/meshes/orbbec_dabai_dcw2/camera_RGB_IR_ROS_frame.STL"/>
+        </geometry>
+      </collision>
+    </link>
+    <joint name="${prefix}RGB_IR_ROS_frame_joint" type="fixed">
+      <origin xyz="0.01448 0.00767 0.0123" rpy="0 0 0"/>
+      <parent link="${prefix}link"/>
+      <child link="${prefix}color_frame"/>
+      <axis xyz="0 0 0"/>
+    </joint>
+    <link name="${prefix}color_optical_frame"/>
+    <joint name="${prefix}color_optical_frame_joint" type="fixed">
+      <origin xyz="0 0 0" rpy="-1.5707963267949 0 -1.5707963267949" />
+      <parent link="${prefix}color_frame" />
+      <child link="${prefix}color_optical_frame" />
+      <axis xyz="0 0 0" />
+    </joint>
+    <link name="${prefix}USB_frame">
+      <inertial>
+        <origin xyz="-3.39829410782033E-05 0.000192142848535241 -0.000881642601060323" rpy="0 0 0"/>
+        <mass value="4.07232030117867E-07"/>
+        <inertia ixx="3.84280193694265E-14" ixy="3.16000630142094E-17" ixz="-5.51957028161441E-19" iyy="3.79177693322494E-14" iyz="-4.65761635837279E-19" izz="9.28041483015495E-15"/>
+      </inertial>
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://cx002_description/meshes/orbbec_dabai_dcw2/USB_frame.STL"/>
+        </geometry>
+        <material name="">
+          <color rgba="0.454901960784314 0.454901960784314 0.454901960784314 1"/>
+        </material>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://cx002_description/meshes/orbbec_dabai_dcw2/USB_frame.STL"/>
+        </geometry>
+      </collision>
+    </link>
+    <joint name="${prefix}USB_frame_joint" type="fixed">
+      <origin xyz="-0.00197 -0.029725 0.0123" rpy="0 0 0"/>
+      <parent link="${prefix}link"/>
+      <child link="${prefix}USB_frame"/>
+      <axis xyz="0 0 0"/>
+    </joint>
+    <link name="${prefix}depth_frame">
+      <inertial>
+        <origin xyz="0.00215231622805329 2.59649261709349E-08 -3.21639014401859E-08" rpy="0 0 0"/>
+        <mass value="0.000275226856772835"/>
+        <inertia ixx="3.08047688060934E-09" ixy="-2.9496900010814E-15" ixz="3.65287258472341E-15" iyy="1.92908990518636E-09" iyz="2.50412547534045E-14" izz="1.92907796037669E-09"/>
+      </inertial>
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://cx002_description/meshes/orbbec_dabai_dcw2/depth_frame.STL"/>
+        </geometry>
+        <material name="">
+          <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1"/>
+        </material>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://cx002_description/meshes/orbbec_dabai_dcw2/depth_frame.STL"/>
+        </geometry>
+      </collision>
+    </link>
+    <joint name="${prefix}depth_frame_joint" type="fixed">
+      <origin xyz="0.01258 0.02 0.0123" rpy="0 0 0"/>
+      <parent link="${prefix}link"/>
+      <child link="${prefix}depth_frame"/>
+      <axis xyz="0 0 0"/>
+    </joint>
+    <link name="${prefix}depth_optical_frame"/>
+    <joint name="${prefix}depth_optical_frame_joint" type="fixed">
+      <origin xyz="0 0 0" rpy="-1.5707963267949 0 -1.5707963267949" />
+      <parent link="${prefix}depth_frame" />
+      <child link="${prefix}depth_optical_frame" />
+      <axis xyz="0 0 0" />
+    </joint>
+  </xacro:macro>
+</robot>

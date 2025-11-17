@@ -1,0 +1,346 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://wiki.ros.org/xacro">
+
+  <xacro:macro name="gripper"
+               params="prefix">
+    <link name="${prefix}gripper_base">
+      <inertial>
+        <origin xyz="0.0462781999245805 0.00114671171262361 -0.0016100126939254"
+                rpy="0 0 0" />
+        <mass value="0.952152443135814" />
+        <inertia ixx="0.000414436104373698"
+                 ixy="1.07361896761865E-06"
+                 ixz="-1.71645770864691E-06"
+                 iyy="0.00031421634442519"
+                 iyz="6.86060394459976E-07"
+                 izz="0.000512365606816346" />
+      </inertial>
+      <visual>
+        <origin xyz="0 0 0"
+                rpy="0 0 0" />
+        <geometry>
+          <mesh filename="package://cx002_description/meshes/gripper/gripper_base.STL" />
+        </geometry>
+        <material name="">
+          <color rgba="0.866666666666667 0.866666666666667 0.890196078431372 1" />
+        </material>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0"
+                rpy="0 0 0" />
+        <geometry>
+          <mesh filename="package://cx002_description/meshes/gripper/collision/gripper_base.STL" />
+        </geometry>
+      </collision>
+    </link>
+    <link name="${prefix}left_finger">
+      <inertial>
+        <origin xyz="0.0136277996037277 0.0258258666940151 -4.20136743402248E-06"
+                rpy="0 0 0" />
+        <mass value="0.0522377269720752" />
+        <inertia ixx="1.96815469886496E-05"
+                 ixy="-1.34835303241136E-05"
+                 ixz="1.06418129160967E-10"
+                 iyy="1.68544651967478E-05"
+                 iyz="7.46986432930518E-10"
+                 izz="3.45456689219043E-05" />
+      </inertial>
+      <visual>
+        <origin xyz="0 0 0"
+                rpy="0 0 0" />
+        <geometry>
+          <mesh filename="package://cx002_description/meshes/gripper/left_finger.STL" />
+        </geometry>
+        <material name="">
+          <color rgba="0.866666666666667 0.866666666666667 0.890196078431372 1" />
+        </material>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0"
+                rpy="0 0 0" />
+        <geometry>
+          <mesh filename="package://cx002_description/meshes/gripper/collision/left_finger.STL" />
+        </geometry>
+      </collision>
+    </link>
+    <link name="${prefix}end_effector" />
+    <joint name="${prefix}end_effector_joint"
+           type="fixed">
+      <origin xyz="0.155 0.0 0.0"
+              rpy="0 0 0" />
+      <parent link="${prefix}gripper_base" />
+      <child link="${prefix}end_effector" />
+      <axis xyz="0 0 1" />
+    </joint>
+    <link name="${prefix}motor_link" />
+    <joint name="${prefix}gripper_joint"
+           type="revolute">
+      <origin xyz="0.0 0.0 0.0"
+              rpy="0 0 0" />
+      <parent link="${prefix}gripper_base" />
+      <child link="${prefix}motor_link" />
+      <axis xyz="0 0 1" />
+      <limit lower="-0.001"
+             upper="25.133"
+             effort="10"
+             velocity="10" />
+    </joint>
+    <link name="${prefix}suction_motor_link" />
+    <joint name="${prefix}suction_motor_joint"
+           type="continuous">
+      <parent link="${prefix}gripper_base" />
+      <child link="${prefix}suction_motor_link" />
+      <origin xyz="0 0 0.05"
+              rpy="0 0 0" />
+      <axis xyz="0 0 1" />
+    </joint>
+    <joint name="${prefix}left_joint"
+           type="revolute">
+      <origin xyz="0.0817 0.0325 0"
+              rpy="0 0 0" />
+      <parent link="${prefix}gripper_base" />
+      <child link="${prefix}left_finger" />
+      <axis xyz="0 0 -1" />
+      <limit lower="-0.001"
+             upper="0.948"
+             effort="10"
+             velocity="10" />
+      <mimic joint="${prefix}gripper_joint"
+             multiplier="-0.037719333"
+             offset="0.948" />
+    </joint>
+    <link name="${prefix}left_finger_tip">
+      <inertial>
+        <origin xyz="0.0169598700443682 -0.0108404599813575 -6.61773911264515E-06"
+                rpy="0 0 0" />
+        <mass value="0.026220563544168" />
+        <inertia ixx="3.99300927072797E-06"
+                 ixy="8.05472791554887E-07"
+                 ixz="-1.41386311174174E-09"
+                 iyy="5.36309622677164E-06"
+                 iyz="7.82422880681819E-10"
+                 izz="3.79010403400001E-06" />
+      </inertial>
+      <visual>
+        <origin xyz="0 0 0"
+                rpy="0 0 0" />
+        <geometry>
+          <mesh filename="package://cx002_description/meshes/gripper/left_finger_tip.STL" />
+        </geometry>
+        <material name="">
+          <color rgba="0.384313725490196 0.384313725490196 0.384313725490196 1" />
+        </material>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0"
+                rpy="0 0 0" />
+        <geometry>
+          <mesh filename="package://cx002_description/meshes/gripper/left_finger_tip.STL" />
+        </geometry>
+      </collision>
+    </link>
+    <joint name="${prefix}left_passive_joint"
+           type="revolute">
+      <origin xyz="0.0475339506367843 0.0513860247232672 0"
+              rpy="0 0 0" />
+      <parent link="${prefix}left_finger" />
+      <child link="${prefix}left_finger_tip" />
+      <axis xyz="0 0 -1" />
+      <limit lower="-3.14"
+             upper="3.14"
+             effort="10"
+             velocity="10" />
+      <mimic joint="${prefix}left_joint"
+             multiplier="-1"
+             offset="0" />
+    </joint>
+    <link name="${prefix}right_finger">
+      <inertial>
+        <origin xyz="0.013627799603727 -0.0258258666940157 4.20136743485722E-06"
+                rpy="0 0 0" />
+        <mass value="0.0522377269720756" />
+        <inertia ixx="1.96815469897366E-05"
+                 ixy="1.34835303241137E-05"
+                 ixz="-1.06418129139127E-10"
+                 iyy="1.68544651978331E-05"
+                 iyz="7.46986432888273E-10"
+                 izz="3.45456689219047E-05" />
+      </inertial>
+      <visual>
+        <origin xyz="0 0 0"
+                rpy="0 0 0" />
+        <geometry>
+          <mesh filename="package://cx002_description/meshes/gripper/right_finger.STL" />
+        </geometry>
+        <material name="">
+          <color rgba="0.866666666666667 0.866666666666667 0.890196078431372 1" />
+        </material>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0"
+                rpy="0 0 0" />
+        <geometry>
+          <mesh filename="package://cx002_description/meshes/gripper/collision/right_finger.STL" />
+        </geometry>
+      </collision>
+    </link>
+    <joint name="${prefix}right_joint"
+           type="revolute">
+      <origin xyz="0.0817 -0.0325 0"
+              rpy="0 0 0" />
+      <parent link="${prefix}gripper_base" />
+      <child link="${prefix}right_finger" />
+      <axis xyz="0 0 -1" />
+      <limit lower="-0.948"
+             upper="0.001"
+             effort="10"
+             velocity="10" />
+      <mimic joint="${prefix}left_joint"
+             multiplier="-1"
+             offset="0" />
+    </joint>
+    <link name="${prefix}right_finger_tip">
+      <inertial>
+        <origin xyz="0.0147438736102157 0.0128200223191907 4.64277305875254E-07"
+                rpy="0 0 0" />
+        <mass value="0.0264604333631762" />
+        <inertia ixx="3.59147955478828E-06"
+                 ixy="-4.86127839894415E-07"
+                 ixz="1.18141683608297E-10"
+                 iyy="4.39601774702969E-06"
+                 iyz="1.04627059446172E-10"
+                 izz="2.80008769953329E-06" />
+      </inertial>
+      <visual>
+        <origin xyz="0 0 0"
+                rpy="0 0 0" />
+        <geometry>
+          <mesh filename="package://cx002_description/meshes/gripper/right_finger_tip.STL" />
+        </geometry>
+        <material name="">
+          <color rgba="0.384313725490196 0.384313725490196 0.384313725490196 1" />
+        </material>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0"
+                rpy="0 0 0" />
+        <geometry>
+          <mesh filename="package://cx002_description/meshes/gripper/collision/right_finger_tip.STL" />
+        </geometry>
+      </collision>
+    </link>
+    <joint name="${prefix}right_passive_joint"
+           type="revolute">
+      <origin xyz="0.0475339506367827 -0.0513860247232689 0"
+              rpy="0 0 0" />
+      <parent link="${prefix}right_finger" />
+      <child link="${prefix}right_finger_tip" />
+      <axis xyz="0 0 -1" />
+      <limit lower="-3.14"
+             upper="3.14"
+             effort="10"
+             velocity="10" />
+      <mimic joint="${prefix}left_joint"
+             multiplier="1"
+             offset="0" />
+    </joint>
+    <link name="${prefix}left_support_link">
+      <inertial>
+        <origin xyz="0.0306867487162492 0.0334560135651763 -5.09441124930597E-05"
+                rpy="0 0 0" />
+        <mass value="0.0184483252494793" />
+        <inertia ixx="2.2627863545962E-06"
+                 ixy="-1.39077727093282E-06"
+                 ixz="5.44225031102969E-09"
+                 iyy="2.12159040565448E-06"
+                 iyz="4.45445433268261E-09"
+                 izz="3.02402802408449E-06" />
+      </inertial>
+      <visual>
+        <origin xyz="0 0 0"
+                rpy="0 0 0" />
+        <geometry>
+          <mesh filename="package://cx002_description/meshes/gripper/left_support_finger.STL" />
+        </geometry>
+        <material name="">
+          <color rgba="0.866666666666667 0.866666666666667 0.890196078431372 1" />
+        </material>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0"
+                rpy="0 0 0" />
+        <geometry>
+          <mesh filename="package://cx002_description/meshes/gripper/collision/left_support_finger.STL" />
+        </geometry>
+      </collision>
+    </link>
+    <joint name="${prefix}left_support_joint"
+           type="revolute">
+      <origin xyz="0.0847 0.0165 0"
+              rpy="0 0 0" />
+      <parent link="${prefix}gripper_base" />
+      <child link="${prefix}left_support_link" />
+      <axis xyz="0 0 -1" />
+      <limit lower="-0.001"
+             upper="0.948"
+             effort="10"
+             velocity="10" />
+      <mimic joint="${prefix}left_joint"
+             multiplier="1"
+             offset="0" />
+    </joint>
+    <link name="${prefix}right_support_link">
+      <inertial>
+        <origin xyz="0.0306878627283013 -0.0334572178549541 4.88039601980665E-05"
+                rpy="0 0 0" />
+        <mass value="0.0184483252494793" />
+        <inertia ixx="2.2627863545962E-06"
+                 ixy="1.39077727093282E-06"
+                 ixz="-5.44225031103077E-09"
+                 iyy="2.12159040565448E-06"
+                 iyz="4.45445433268214E-09"
+                 izz="3.02402802408448E-06" />
+      </inertial>
+      <visual>
+        <origin xyz="0 0 0"
+                rpy="0 0 0" />
+        <geometry>
+          <mesh filename="package://cx002_description/meshes/gripper/right_support_finger.STL" />
+        </geometry>
+        <material name="">
+          <color rgba="0.866666666666667 0.866666666666667 0.890196078431372 1" />
+        </material>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0"
+                rpy="0 0 0" />
+        <geometry>
+          <mesh filename="package://cx002_description/meshes/gripper/collision/right_support_finger.STL" />
+        </geometry>
+      </collision>
+    </link>
+    <joint name="${prefix}right_support_joint"
+           type="revolute">
+      <origin xyz="0.0847 -0.0165 0"
+              rpy="0 0 0" />
+      <parent link="${prefix}gripper_base" />
+      <child link="${prefix}right_support_link" />
+      <axis xyz="0 0 -1" />
+      <limit lower="-0.948"
+             upper="0.001"
+             effort="10"
+             velocity="10" />
+      <mimic joint="${prefix}left_joint"
+             multiplier="-1"
+             offset="0" />
+    </joint>
+    <link name="${prefix}in_hand_camera_link" />
+    <joint name="${prefix}in_hand_camera_joint"
+           type="fixed">
+      <origin xyz="0.08185 0 0.0521"
+              rpy="0 0 0" />
+      <parent link="${prefix}gripper_base" />
+      <child link="${prefix}in_hand_camera_link" />
+    </joint>
+  </xacro:macro>
+</robot>
