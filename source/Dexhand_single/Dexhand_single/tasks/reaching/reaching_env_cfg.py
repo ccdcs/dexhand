@@ -11,6 +11,7 @@ from isaaclab.sim import SimulationCfg, SphereCfg
 from isaaclab.utils import configclass
 import isaaclab.sim as sim_utils
 from isaaclab.actuators import ImplicitActuatorCfg
+from isaaclab.envs import ViewerCfg
 
 
 TARGET_CFG = RigidObjectCfg(
@@ -114,6 +115,18 @@ class ReachingEnvCfg(DirectRLEnvCfg):
     # scene
     scene: InteractiveSceneCfg = InteractiveSceneCfg(
         num_envs=4096, env_spacing=2.0, replicate_physics=True
+    )
+    viewer: ViewerCfg = ViewerCfg(
+        eye=(
+            2.0,
+            -2.0,
+            1.5,
+        ),  # Camera position: (X, Y, Z) - Set back, to the side, and up
+        lookat=(
+            0.0,
+            0.0,
+            0.7,
+        ),  # Target position: Look directly at the hand's root position
     )
     # robot
     robot: ArticulationCfg = DEXHAND_CFG.replace(prim_path="/World/envs/env_.*/Robot")
