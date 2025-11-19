@@ -24,8 +24,8 @@ TARGET_CFG = RigidObjectCfg(
         visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(1.0, 0.0, 0.0)),
     ),
     init_state=RigidObjectCfg.InitialStateCfg(
-        pos=(0.5, 0.0, 0.5),
-        rot=(1.0, 0.0, 0.0, 0.0),  # Identity quaternion (w, x, y, z)
+        pos=(0.0, 0.0, 0.0),
+        rot=(1.0, 0.0, 0.0, 0.0),
     ),
 )
 
@@ -51,9 +51,10 @@ DEXHAND_CFG = ArticulationCfg(
             "R2_pre_joint": 0.0,
             "R3_pre_joint": 0.0,
         },
-        pos=(0.0, 0.0, 0.7),
-        rot=(1.0, 0.0, 0.0, 0.0),  # Identity quaternion (w, x, y, z)
+        pos=(0.0, 5.0, 5.0),
+        rot=(1.0, 0.0, 0.0, 0.0),
     ),
+    actuators={},
 )
 
 
