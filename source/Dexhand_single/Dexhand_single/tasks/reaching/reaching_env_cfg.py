@@ -25,6 +25,7 @@ TARGET_CFG = RigidObjectCfg(
     ),
     init_state=RigidObjectCfg.InitialStateCfg(
         pos=(0.5, 0.0, 0.5),
+        rot=(1.0, 0.0, 0.0, 0.0),  # Identity quaternion (w, x, y, z)
     ),
 )
 
@@ -51,51 +52,8 @@ DEXHAND_CFG = ArticulationCfg(
             "R3_pre_joint": 0.0,
         },
         pos=(0.0, 0.0, 0.7),
+        rot=(1.0, 0.0, 0.0, 0.0),  # Identity quaternion (w, x, y, z)
     ),
-    actuators={
-        "L1_act": ImplicitActuatorCfg(
-            joint_names_expr=["L1_joint"],
-            effort_limit_sim=100.0,
-            velocity_limit_sim=100.0,
-            stiffness=500.0,
-            damping=500.0,
-        ),
-        "L2_act": ImplicitActuatorCfg(
-            joint_names_expr=["L2_pre_joint"],
-            effort_limit_sim=100.0,
-            velocity_limit_sim=100.0,
-            stiffness=500.0,
-            damping=500.0,
-        ),
-        "L3_act": ImplicitActuatorCfg(
-            joint_names_expr=["L3_pre_joint"],
-            effort_limit_sim=100.0,
-            velocity_limit_sim=100.0,
-            stiffness=500.0,
-            damping=500.0,
-        ),
-        "R1_act": ImplicitActuatorCfg(
-            joint_names_expr=["R1_joint"],
-            effort_limit_sim=100.0,
-            velocity_limit_sim=100.0,
-            stiffness=500.0,
-            damping=500.0,
-        ),
-        "R2_act": ImplicitActuatorCfg(
-            joint_names_expr=["R2_pre_joint"],
-            effort_limit_sim=100.0,
-            velocity_limit_sim=100.0,
-            stiffness=500.0,
-            damping=500.0,
-        ),
-        "R3_act": ImplicitActuatorCfg(
-            joint_names_expr=["R3_pre_joint"],
-            effort_limit_sim=100.0,
-            velocity_limit_sim=100.0,
-            stiffness=500.0,
-            damping=500.0,
-        ),
-    },
 )
 
 
@@ -105,9 +63,9 @@ class ReachingEnvCfg(DirectRLEnvCfg):
     decimation = 2
     episode_length_s = 10.0
     # - spaces definition
-    action_space = 6
-    observation_space = 16
-    state_space = 16
+    action_space = 7
+    observation_space = 13
+    state_space = 13  # State space should match observation space for simplicity
 
     # simulation
     sim: SimulationCfg = SimulationCfg(dt=1 / 120, render_interval=decimation)
@@ -133,17 +91,20 @@ class ReachingEnvCfg(DirectRLEnvCfg):
     # target
     target: RigidObjectCfg = TARGET_CFG
 
-    # custom parameters/scales
     # - reward scales
-    rew_scale_alive = 1.0
-    rew_scale_terminated = -2.0
-    rew_scale_potential = 10.0  # coefficient for the potential-based distance reward
-    rew_scale_success = 5.0
+    rew_scale_pos_potential = 10.0
+    rew_scale_orn_potential = 5.0
+
+    rew_success_bonus = 100.0  # bonus for successful episode
     # - action penalty
     action_penalty = -0.001
-    # - action scales
+    # - action scales (for delta actions)
     action_scale_pos = 0.1  # [m]
     action_scale_rot = 0.1  # [rad]
     # - reset states/conditions
-    workspace = [(-1.0, -1.0, 0.0), (1.0, 1.0, 1.0)]
-    success_tolerance = 0.05
+    workspace = [
+        (-1.0, -1.0, 0.0),
+        (1.0, 1.0, 1.0),
+    ]  # Keep this for now, might be used elsewhere
+    pos_tolerance = 0.05  # [m]
+    orn_tolerance = 0.1745  # [rad] (~10 degrees)

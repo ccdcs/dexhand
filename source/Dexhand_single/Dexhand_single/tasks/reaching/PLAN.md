@@ -1,76 +1,110 @@
-# Dexhand Reaching Task: Plan and Requirements
-
-This document outlines the requirements and implementation plan for the Dexhand `Reaching` reinforcement learning task.
+# Dexhand Reaching Task: Plan and Requirements (Updated)
 
 ## 1. Goal and Requirements
 
 ### Overall Goal
-To develop a reinforcement learning policy that learns to control the Dexhand's wrist, moving it to a specified target object within the simulation.
+
+To develop a reinforcement learning policy that learns to control the Dexhand's wrist, moving it to a specific target position and orientation within the simulation.
 
 ### Detailed Requirements
 
-*   **Robot Configuration (Floating Hand):**
-    *   The Dexhand will be treated as a floating, kinematic body, meaning its movement is not governed by physics simulation forces like gravity or momentum.
-    *   The policy will directly control the 6-DoF pose (position and orientation) of the hand's base.
-    *   For this initial task, the hand's fingers will be kept in a static, neutral pose and will not be controlled by the policy.
+* **Robot Configuration (Floating Hand):**
+  * The Dexhand will be treated as a floating, kinematic body.
+  * The policy will directly control the 6-DoF pose (position and orientation) of the hand's base.
+  * For this initial task, the hand's fingers will be kept in a static, neutral pose and will not be controlled by the policy.
 
-*   **Target Object:**
-    *   A simple sphere will be used as the target.
-    *   For initial development, the target will be placed at a fixed, non-randomized position: **(0.5, 0.0, 0.5)**.
-    *   The hand will start at a fixed, non-randomized position: **(0.0, 0.0, 0.7)**.
+* **Target Object:**
+  * A simple sphere will be used as the target.
+  * **Fixed Position:** (0.5, 0.0, 0.5)
+  * **Fixed Orientation:** Identity quaternion (no rotation)
 
-*   **Action Space:**
-    *   A 6-dimensional continuous vector representing the **absolute target pose** for the hand's wrist: `(x, y, z, roll, pitch, yaw)`.
+* **Robot Initial Pose:**
+  * **Fixed Position:** (0.0, 0.0, 0.7)
+  * **Fixed Orientation:** Identity quaternion (no rotation)
 
-*   **Observation Space:**
-    *   A state-based, continuous vector containing:
-        *   Hand wrist position (3 values: x, y, z)
-        *   Hand wrist orientation (4 values: quaternion w, x, y, z)
-        *   Target object position (3 values: x, y, z)
-        *   Current finger joint angles (6 values)
+* **Action Space (7-dimensional, Continuous, Relative):**
+  * `delta_position` (3 values: change in x, y, z)
+  * `delta_orientation` (4 values: quaternion for change in orientation)
+  * Actions are relative to the robot's current pose. The output quaternion will be normalized before being applied.
 
-*   **Reward Function:**
-    *   A primary reward that increases as the distance between the hand and the target decreases.
-    *   A large bonus reward for successfully reaching the target.
-    *   A small penalty applied to the magnitude of the actions to encourage smooth and efficient movements.
+* **Observation Space (13-dimensional, Continuous):**
+  * `robot_linear_velocity` (3 values: x, y, z)
+  * `robot_angular_velocity` (3 values: x, y, z)
+  * `relative_target_position` (3 values: x, y, z of target relative to robot's local frame)
+  * `relative_target_orientation` (4 values: quaternion of target orientation relative to robot's local frame)
 
-*   **Success and Termination:**
-    *   An episode is considered a **success** if the hand's wrist moves within a **5cm radius** of the target object.
-    *   An episode **terminates** if it reaches the success condition or if it exceeds the maximum time limit.
+* **Reward Function (Simple, Potential-based):**
+  * **`rew_scale_pos_potential = 10.0`**: Rewards decrease in positional distance.
+  * **`rew_scale_orn_potential = 5.0`**: Rewards decrease in angular distance (orientation).
+  * **`rew_success_bonus = 100.0`**: Large bonus for achieving both position and orientation goal.
+  * **`action_penalty = -0.001`**: Small penalty on squared magnitude of actions.
+  * **`timeout_penalty = -2.0`**: Penalty for episode termination due to timeout.
+
+* **Success and Termination:**
+  * An episode is considered a **success** if:
+    * `current_distance < pos_tolerance` (e.05 meters)
+    * AND `current_angular_distance < orn_tolerance` (e.1745 radians, ~10 degrees)
+  * An episode **terminates** if it reaches the success condition or if it exceeds the maximum time limit.
 
 ## 2. Detailed Implementation Plan
 
-The implementation will be broken into two main phases: first configuring the environment, and second, implementing the environment's logic.
-
 ### Phase 1: Environment Configuration (`reaching_env_cfg.py`)
-1.  **Import necessary modules:** Add imports for `SceneObjectCfg` and `SphereCfg`.
-2.  **Define Target Object:** Create a `SceneObjectCfg` for a sphere with a radius of 0.05m. Set its `kinematic_enabled` property to `True` and give it a red color for visualization.
-3.  **Re-configure Robot:**
-    *   In `DOFBOT_CONFIG`, set `kinematic_enabled=True` and `disable_gravity=True` to make the hand a floating kinematic body.
-    *   Remove the `actuators` dictionary to make the fingers passive.
-    *   Update the initial `pos` to `(0.0, 0.0, 0.7)`.
-4.  **Update Environment Settings in `ReachingEnvCfg`:**
-    *   Set `action_space = 6` and `observation_space = 16`.
-    *   Add the target configuration to the environment.
-    *   Define new reward scales (`rew_scale_dist`, `rew_scale_success`) and a `success_tolerance` of `0.05`.
-    *   Remove obsolete configuration parameters from the old task.
+
+1. **Define Target Object:** Configure `RigidObjectCfg` for a sphere with:
+    * Fixed position: (0.5, 0.0, 0.5)
+    * Fixed orientation: Identity quaternion
+    * `kinematic_enabled=True`
+2. **Re-configure Robot:**
+    * Configure `ArticulationCfg` for the robot with:
+    * Fixed initial position: (0.0, 0.0, 0.7)
+    * Fixed initial orientation: Identity quaternion
+    * `kinematic_enabled=True`, `disable_gravity=True`
+    * Remove `actuators` to keep fingers passive (if they are present from a previous setup).
+3. **Update Environment Settings in `ReachingEnvCfg`:**
+    * Set `action_space = 7` and `observation_space = 13`.
+    * Update `rew_scale_pos_potential`, `rew_scale_orn_potential`, `rew_success_bonus`, `action_penalty`, `timeout_penalty`.
+    * Define `pos_tolerance = 0.05` and `orn_tolerance = 0.1745`.
+    * Remove obsolete configuration parameters.
 
 ### Phase 2: Environment Logic (`reaching_env.py`)
-1.  **Update Class Members:** Remove obsolete variables (e.g., `target_joint_pos`) and add new ones to store handles to the robot and target objects and their data.
-2.  **Modify `_setup_scene()`:**
-    *   Instantiate the robot and the target object using the configurations from `ReachingEnvCfg`.
-    *   Add the robot and target to the scene's list of tracked assets.
-3.  **Modify `_reset_idx()`:**
-    *   Implement logic to reset the robot's root pose and finger joint positions to their default states at the beginning of each episode.
-4.  **Modify `_get_observations()`:**
-    *   Gather the robot's root position/orientation, the target's position, and the finger joint angles.
-    *   Concatenate these values into a single observation tensor.
-5.  **Modify `_apply_action()`:**
-    *   Take the 6D action from the policy.
-    *   Convert the 3D orientation part (roll, pitch, yaw) into a quaternion.
-    *   Apply the resulting target pose (position + quaternion) to the robot's root using the appropriate Isaac Lab function (`write_root_pose_to_sim`).
-6.  **Modify `_get_rewards()`:**
-    *   Create a new `compute_rewards` function.
-    *   It will calculate the distance between the hand and the target and compute the total reward based on the defined reward scales.
-7.  **Modify `_get_dones()`:**
-    *   Implement the termination logic. An episode will terminate upon success (distance < tolerance) or timeout.
+
+1. **Helper Functions:** Implement (or import) helper functions for `get_angular_distance` and `get_relative_pose`.
+    * `get_angular_distance(quat1, quat2)`: Calculates the angular difference between two quaternions.
+    * `get_relative_pose(robot_quat, robot_pos, target_quat, target_pos)`: Calculates relative target position and orientation (as quaternion).
+
+2. **Modify `_apply_action()`:**
+    * Extract `delta_position` (3D) and `delta_orientation_quat` (4D) from `self.actions`.
+    * Scale `delta_position` by `action_scale_pos`.
+    * **Normalize `delta_orientation_quat` to ensure it's a unit quaternion.**
+    * Calculate `new_position = current_robot_pos + delta_position`.
+    * Calculate `new_orientation_quat = quat_mul(delta_orientation_quat, current_robot_quat)`.
+    * Apply `new_position` and `new_orientation_quat` to the robot's root.
+    * Set finger joints to their default static positions.
+
+3. **Modify `_get_observations()`:**
+    * Get `robot_linear_velocity`, `robot_angular_velocity`.
+    * Get `robot_orientation_quat` (needed for relative calculations).
+    * Get `robot_pos_w` (needed for relative calculations).
+    * Get `target_pos_w`, `target_quat_w`.
+    * Calculate `relative_target_pos_w`, `relative_target_quat_w` using `get_relative_pose` with `robot_orientation_quat` and `robot_pos_w`.
+    * Concatenate all 13 dimensions into the observation tensor.
+
+4. **Modify `_get_rewards()`:**
+    * Calculate `current_distance = torch.norm(robot_pos - target_pos, dim=-1)`.
+    * Calculate `current_angular_distance = get_angular_distance(robot_quat, target_quat)`.
+    * Calculate `pos_potential_reward = rew_scale_pos_potential * (prev_dist - current_distance)`.
+    * Calculate `orn_potential_reward = rew_scale_orn_potential * (prev_ang_dist - current_angular_distance)`.
+    * Calculate `action_cost = action_penalty * torch.sum(torch.square(self.actions), dim=1)`.
+    * `reward = pos_potential_reward + orn_potential_reward + action_cost`.
+    * Apply `rew_success_bonus` if success condition met.
+    * Update `prev_dist` and `prev_ang_dist` buffers.
+
+5. **Modify `_get_dones()`:**
+    * Calculate `success = (current_distance < pos_tolerance) & (current_angular_distance < orn_tolerance)`.
+    * Return `terminated = success` and `time_out`.
+
+6. **Modify `_reset_idx()`:**
+    * Reset robot to its fixed initial pose (position and orientation).
+    * Reset target to its fixed position and orientation.
+    * Initialize `prev_dist` and `prev_ang_dist` buffers.
+
