@@ -13,8 +13,8 @@ To develop a reinforcement learning policy that learns to control the Dexhand's 
   * The policy will directly control the 6-DoF pose (position and orientation) of the hand's base.
   * For this initial task, the hand's fingers will be kept in a static, neutral pose and will not be controlled by the policy.
 
-* **Target Object:**
-  * A simple sphere will be used as the target.
+* **Target Pose:**
+  * The target is a fixed numerical pose (position and orientation) defined in the environment configuration.
   * **Fixed Position:** (0.5, 0.0, 0.5)
   * **Fixed Orientation:** Identity quaternion (no rotation)
 
@@ -50,10 +50,9 @@ To develop a reinforcement learning policy that learns to control the Dexhand's 
 
 ### Phase 1: Environment Configuration (`reaching_env_cfg.py`)
 
-1. **Define Target Object:** Configure `RigidObjectCfg` for a sphere with:
-    * Fixed position: (0.5, 0.0, 0.5)
-    * Fixed orientation: Identity quaternion
-    * `kinematic_enabled=True`
+1. **Define Target Pose:** Define `target_position` and `target_orientation` in `ReachingEnvCfg` with:
+    * Fixed position: [0.5, 0.0, 0.5]
+    * Fixed orientation: [1.0, 0.0, 0.0, 0.0] (wxyz quaternion)
 2. **Re-configure Robot:**
     * Configure `ArticulationCfg` for the robot with:
     * Fixed initial position: (0.0, 0.0, 0.7)
@@ -85,7 +84,7 @@ To develop a reinforcement learning policy that learns to control the Dexhand's 
     * Get `robot_linear_velocity`, `robot_angular_velocity`.
     * Get `robot_orientation_quat` (needed for relative calculations).
     * Get `robot_pos_w` (needed for relative calculations).
-    * Get `target_pos_w`, `target_quat_w`.
+    * Get `target_pos`, `target_quat` from the stored tensors.
     * Calculate `relative_target_pos_w`, `relative_target_quat_w` using `get_relative_pose` with `robot_orientation_quat` and `robot_pos_w`.
     * Concatenate all 13 dimensions into the observation tensor.
 
@@ -105,6 +104,5 @@ To develop a reinforcement learning policy that learns to control the Dexhand's 
 
 6. **Modify `_reset_idx()`:**
     * Reset robot to its fixed initial pose (position and orientation).
-    * Reset target to its fixed position and orientation.
-    * Initialize `prev_dist` and `prev_ang_dist` buffers.
+    * Initialize `prev_dist` and `prev_ang_dist` buffers using the numerical target pose.
 

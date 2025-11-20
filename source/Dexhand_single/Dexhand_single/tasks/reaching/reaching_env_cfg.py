@@ -4,30 +4,13 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 
-from isaaclab.assets import ArticulationCfg, RigidObjectCfg
-from isaaclab.envs import DirectRLEnvCfg
+from isaaclab.assets import ArticulationCfg
+from isaaclab.envs import DirectRLEnvCfg, ViewerCfg
 from isaaclab.scene import InteractiveSceneCfg
-from isaaclab.sim import SimulationCfg, SphereCfg
+from isaaclab.sim import SimulationCfg
 from isaaclab.utils import configclass
 import isaaclab.sim as sim_utils
-from isaaclab.actuators import ImplicitActuatorCfg
-from isaaclab.envs import ViewerCfg
 
-
-TARGET_CFG = RigidObjectCfg(
-    prim_path="/World/envs/env_.*/target",
-    spawn=SphereCfg(
-        radius=0.05,
-        rigid_props=sim_utils.RigidBodyPropertiesCfg(
-            kinematic_enabled=True,
-        ),
-        visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(1.0, 0.0, 0.0)),
-    ),
-    init_state=RigidObjectCfg.InitialStateCfg(
-        pos=(0.0, 0.0, 0.0),
-        rot=(1.0, 0.0, 0.0, 0.0),
-    ),
-)
 
 DEXHAND_CFG = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(
@@ -89,8 +72,10 @@ class ReachingEnvCfg(DirectRLEnvCfg):
     )
     # robot
     robot: ArticulationCfg = DEXHAND_CFG.replace(prim_path="/World/envs/env_.*/Robot")
-    # target
-    target: RigidObjectCfg = TARGET_CFG
+
+    # target pose
+    target_position = [0.5, 0.0, 0.5]
+    target_orientation = [1.0, 0.0, 0.0, 0.0]
 
     # - reward scales
     rew_scale_pos_potential = 10.0
@@ -103,9 +88,10 @@ class ReachingEnvCfg(DirectRLEnvCfg):
     action_scale_pos = 0.1  # [m]
     action_scale_rot = 0.1  # [rad]
     # - reset states/conditions
+    # TODO: do i need workspace
     workspace = [
         (-1.0, -1.0, 0.0),
         (1.0, 1.0, 1.0),
-    ]  # Keep this for now, might be used elsewhere
+    ]
     pos_tolerance = 0.05  # [m]
     orn_tolerance = 0.1745  # [rad] (~10 degrees)
