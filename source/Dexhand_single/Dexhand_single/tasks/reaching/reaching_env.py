@@ -207,4 +207,3 @@ def compute_rewards(
     )
 
     return reward
-

@@ -1,9 +1,3 @@
-# Copyright (c) 2022-2025, The Isaac Lab Project Developers.
-# All rights reserved.
-#
-# SPDX-License-Identifier: BSD-3-Clause
-
-
 from isaaclab.assets import ArticulationCfg
 from isaaclab.envs import DirectRLEnvCfg, ViewerCfg
 from isaaclab.scene import InteractiveSceneCfg
@@ -43,51 +37,35 @@ DEXHAND_CFG = ArticulationCfg(
 
 @configclass
 class ReachingEnvCfg(DirectRLEnvCfg):
-    # env
     decimation = 2
-    episode_length_s = 10.0
-    # - spaces definition
+    episode_length_s = 5.0
     action_space = 7
     observation_space = 13
-    state_space = 13  # State space should match observation space for simplicity
+    state_space = 13
 
-    # simulation
     sim: SimulationCfg = SimulationCfg(dt=1 / 120, render_interval=decimation)
 
-    # scene
     scene: InteractiveSceneCfg = InteractiveSceneCfg(
         num_envs=4096, env_spacing=2.0, replicate_physics=True
     )
-    viewer: ViewerCfg = ViewerCfg(
-        eye=(
-            2.0,
-            -2.0,
-            1.5,
-        ),  # Camera position: (X, Y, Z) - Set back, to the side, and up
-        lookat=(
-            0.0,
-            0.0,
-            0.7,
-        ),  # Target position: Look directly at the hand's root position
-    )
-    # robot
+    viewer: ViewerCfg = ViewerCfg(eye=(2.0, -2.0, 1.5), lookat=(0.0, 0.0, 0.7))
     robot: ArticulationCfg = DEXHAND_CFG.replace(prim_path="/World/envs/env_.*/Robot")
 
     # target pose
-    target_position = [0.5, 0.0, 0.5]
+    target_position = [0.0, 0.0, 0.0]
     target_orientation = [1.0, 0.0, 0.0, 0.0]
 
-    # - reward scales
+    # rewards
     rew_scale_pos_potential = 10.0
-    rew_scale_orn_potential = 5.0
-
-    rew_success_bonus = 100.0  # bonus for successful episode
-    # - action penalty
+    rew_scale_orn_potential = 10.0
+    rew_success_bonus = 100.0
     action_penalty = -0.001
-    # - action scales (for delta actions)
+
+    # action scales (for delta actions)
     action_scale_pos = 0.1  # [m]
     action_scale_rot = 0.1  # [rad]
-    # - reset states/conditions
+
+    # reset states/conditions
     # TODO: do i need workspace
     workspace = [
         (-1.0, -1.0, 0.0),
