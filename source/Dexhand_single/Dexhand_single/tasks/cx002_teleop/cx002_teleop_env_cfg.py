@@ -11,10 +11,10 @@ from isaaclab.utils import configclass
 import isaaclab.sim as sim_utils
 from isaaclab.actuators import ImplicitActuatorCfg
 
-# CX002 robot configuration
+# CX002 robot configuration using the robot USD file from configuration folder
 CX002_CONFIG = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(
-        usd_path="assets/cx002_description/urdf/cx002.usd",
+        usd_path="assets/cx002_description/urdf/configuration/cx002_robot_robot.usd",
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
             disable_gravity=False,
             max_depenetration_velocity=5.0,
