@@ -32,10 +32,11 @@ from isaaclab.assets import AssetBaseCfg
 from isaaclab.assets.articulation import ArticulationCfg
 from isaaclab.scene import InteractiveScene, InteractiveSceneCfg
 
-# CX002 robot configuration using the robot USD file from configuration folder
+# CX002 robot configuration
+# Try the main USD file first, if that doesn't work, may need to specify prim_path
 CX002_CONFIG = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(
-        usd_path="assets/cx002_description/urdf/configuration/cx002_robot_robot.usd",
+        usd_path="assets/cx002_description/urdf/cx002.usd",
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
             disable_gravity=False,
             max_depenetration_velocity=5.0,
