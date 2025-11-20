@@ -26,6 +26,7 @@ app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
 
 import isaaclab.sim as sim_utils
+from isaaclab.actuators import ImplicitActuatorCfg
 from isaaclab.assets import AssetBaseCfg
 from isaaclab.assets.articulation import ArticulationCfg
 from isaaclab.scene import InteractiveScene, InteractiveSceneCfg
@@ -47,6 +48,16 @@ CX002_CONFIG = ArticulationCfg(
     init_state=ArticulationCfg.InitialStateCfg(
         pos=(0.0, 0.0, 1.0),  # Spawn at height 1.0m
     ),
+    # Basic actuators for all joints (using wildcard for simplicity)
+    actuators={
+        "all_joints": ImplicitActuatorCfg(
+            joint_names_expr=[".*"],  # Match all joints
+            effort_limit_sim=100.0,
+            velocity_limit_sim=100.0,
+            stiffness=500.0,
+            damping=500.0,
+        ),
+    },
 )
 
 
