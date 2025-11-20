@@ -5,6 +5,7 @@
 
 """
 Simple script to spawn and view the cx002 humanoid robot in Isaac Sim.
+Uses the USD files from assets/cx002_description/urdf/configuration/.
 """
 
 import argparse
@@ -31,10 +32,10 @@ from isaaclab.assets import AssetBaseCfg
 from isaaclab.assets.articulation import ArticulationCfg
 from isaaclab.scene import InteractiveScene, InteractiveSceneCfg
 
-# CX002 robot configuration
+# CX002 robot configuration using the robot USD file from configuration folder
 CX002_CONFIG = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(
-        usd_path="assets/cx002_description/urdf/cx002.usd",
+        usd_path="assets/cx002_description/urdf/configuration/cx002_robot_robot.usd",
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
             disable_gravity=False,
             max_depenetration_velocity=5.0,
@@ -48,10 +49,10 @@ CX002_CONFIG = ArticulationCfg(
     init_state=ArticulationCfg.InitialStateCfg(
         pos=(0.0, 0.0, 1.0),  # Spawn at height 1.0m
     ),
-    # Basic actuators for all joints (using wildcard for simplicity)
+    # Actuators for all joints using wildcard pattern
     actuators={
         "all_joints": ImplicitActuatorCfg(
-            joint_names_expr=[".*"],  # Match all joints
+            joint_names_expr=[".*"],
             effort_limit_sim=100.0,
             velocity_limit_sim=100.0,
             stiffness=500.0,
@@ -80,51 +81,34 @@ class Cx002SceneCfg(InteractiveSceneCfg):
 
 
 def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
-    """Run the simulator."""
-    # Define simulation stepping
+    """Run the simulator loop."""
     sim_dt = sim.get_physics_dt()
     count = 0
-    # Simulate physics
     while simulation_app.is_running():
-        # reset
         if count % 500 == 0:
-            # reset counter
             count = 0
-            # reset the scene entities
-            # root state
-            # we offset the root state by the origin since the states are stored in simulation world frame
-            # if this is not done, then the robots will be spawned at the (0, 0, 0) of the simulation world
             scene.reset()
             print("[INFO]: Resetting robots state...")
-        # perform step
         sim.step(render=True)
-        # update scene
         scene.update(sim_dt)
-        # increment counter
         count += 1
 
 
 def main():
-    """Main function."""
-    # Initialize the simulation context
+    """Main function to initialize and run the simulation."""
     sim_cfg = sim_utils.SimulationCfg(device=args_cli.device)
     sim = sim_utils.SimulationContext(sim_cfg)
 
-    # Set camera view
     sim.set_camera_view([2.5, 2.5, 2.5], [0.0, 0.0, 0.5])
 
-    # Design scene
     scene_cfg = Cx002SceneCfg(num_envs=args_cli.num_envs, env_spacing=2.0)
     scene = InteractiveScene(scene_cfg)
 
-    # Play the simulator
     sim.reset()
 
-    # Now we are ready!
     print("[INFO]: Setup complete...")
     print("[INFO]: Press Ctrl+C to exit")
 
-    # Run the simulator
     run_simulator(sim, scene)
 
 
