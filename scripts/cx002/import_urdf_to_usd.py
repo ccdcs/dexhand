@@ -3,11 +3,6 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""
-Script to import URDF file and export as USD with proper articulation setup.
-Run this once to create a proper USD file from the URDF.
-"""
-
 import argparse
 from pathlib import Path
 
@@ -35,44 +30,61 @@ app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
 
 import omni.usd
-from omni.isaac.urdf import _urdf
 from pxr import Usd, UsdGeom, PhysxSchema
+import omni.kit.commands
 
-# Get the stage
 stage = omni.usd.get_context().get_stage()
 
-# Import URDF
-urdf_interface = _urdf.acquire_urdf_interface()
-status, import_path = omni.kit.commands.execute(
-    "URDFParseAndImportFile",
-    urdf_path=args_cli.urdf_path,
-    import_inertia_tensor=False,
-    fix_base=True,
-    make_default_prim=True,
-    create_physics_scene=True,
-    self_collision=False,
-)
+output_path = Path(args_cli.output_path)
+if output_path.exists():
+    print(f"[INFO]: Found existing USD file: {output_path}")
+    print("[INFO]: Opening it to verify ArticulationRootAPI...")
+    
+    omni.usd.get_context().open_stage(str(output_path))
+    stage = omni.usd.get_context().get_stage()
+    
+    default_prim = stage.GetDefaultPrim()
+    if not default_prim:
+        for prim in stage.Traverse():
+            if prim.IsA(UsdGeom.Xform):
+                default_prim = prim
+                break
+    
+    if default_prim and default_prim.IsValid():
+        import_path = str(default_prim.GetPath())
+        print(f"[INFO]: Found root prim: {import_path}")
+        status = True
+    else:
+        print("[ERROR]: Could not find root prim in USD file")
+        status = False
+        import_path = None
+else:
+    print(f"[ERROR]: USD file does not exist: {output_path}")
+    print(f"[INFO]: Please import the URDF manually in Isaac Sim:")
+    print(f"       1. File > Import > URDF")
+    print(f"       2. Select: {args_cli.urdf_path}")
+    print(f"       3. Check 'Create Articulation'")
+    print(f"       4. Export to: {args_cli.output_path}")
+    print(f"       5. Run this script again to apply ArticulationRootAPI")
+    simulation_app.close()
+    exit(1)
 
 if status:
     print(f"[INFO]: Successfully imported URDF to: {import_path}")
     
-    # Get the root prim (should be the robot root)
     root_prim = stage.GetPrimAtPath(import_path)
     
     if root_prim.IsValid():
-        # Apply ArticulationRootAPI
         articulation_api = PhysxSchema.PhysxArticulationAPI.Apply(root_prim, "ArticulationRoot")
         if articulation_api:
             print(f"[INFO]: Applied ArticulationRootAPI to {import_path}")
         else:
             print(f"[WARNING]: Failed to apply ArticulationRootAPI to {import_path}")
         
-        # Set as default prim if not already set
         if not stage.GetDefaultPrim():
             stage.SetDefaultPrim(root_prim)
             print(f"[INFO]: Set {import_path} as default prim")
         
-        # Save the USD file
         output_path = Path(args_cli.output_path)
         output_path.parent.mkdir(parents=True, exist_ok=True)
         
