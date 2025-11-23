@@ -52,7 +52,7 @@ class ReachingEnvCfg(DirectRLEnvCfg):
     robot: ArticulationCfg = DEXHAND_CFG.replace(prim_path="/World/envs/env_.*/Robot")
 
     # target pose
-    target_position = [0.0, 0.0, 0.0]
+    target_position = [0.0, 0.0, 1.0]
     target_orientation = [1.0, 0.0, 0.0, 0.0]
 
     # rewards
@@ -66,10 +66,5 @@ class ReachingEnvCfg(DirectRLEnvCfg):
     action_scale_rot = 0.1  # [rad]
 
     # reset states/conditions
-    # TODO: do i need workspace
-    workspace = [
-        (-1.0, -1.0, 0.0),
-        (1.0, 1.0, 1.0),
-    ]
     pos_tolerance = 0.05  # [m]
     orn_tolerance = 0.1745  # [rad] (~10 degrees)
