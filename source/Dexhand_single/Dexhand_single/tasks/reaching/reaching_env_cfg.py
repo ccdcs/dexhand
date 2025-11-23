@@ -28,7 +28,7 @@ DEXHAND_CFG = ArticulationCfg(
             "R2_pre_joint": 0.0,
             "R3_pre_joint": 0.0,
         },
-        pos=(0.0, 5.0, 5.0),
+        pos=(0.0, 5.0, 1.0),
         rot=(1.0, 0.0, 0.0, 0.0),
     ),
     actuators={},

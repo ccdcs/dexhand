@@ -22,16 +22,6 @@ class ReachingEnv(DirectRLEnv):
             self.cfg.target_orientation, device=self.device
         ).repeat(self.num_envs, 1)
 
-        # New variables for logging
-        self.termination_stats = {
-            "success_pos_error": [],
-            "success_orn_error": [],
-            "timeout_pos_error": [],
-            "timeout_orn_error": [],
-        }
-        self.log_interval = 100  # Print stats every 100 steps
-        self.step_counter = 0
-
     def _setup_scene(self):
         self.robot = Articulation(self.cfg.robot)
         spawn_ground_plane(prim_path="/World/ground", cfg=GroundPlaneCfg())
@@ -127,48 +117,7 @@ class ReachingEnv(DirectRLEnv):
         self.prev_dist_to_target = current_dist_to_target
         self.prev_ang_dist_to_target = current_ang_dist_to_target
 
-        # Log termination stats
-        self.step_counter += 1
-        if self.step_counter % self.log_interval == 0:
-            self._log_termination_stats()
-
         return reward
-
-    def _log_termination_stats(self):
-        """Logs summary statistics of termination conditions."""
-        print("--- Termination Stats ---")
-
-        if self.termination_stats["success_pos_error"]:
-            all_errors = torch.cat(self.termination_stats["success_pos_error"])
-            print(
-                f"Success Pos Error (avg/min/max): "
-                f"{all_errors.mean():.4f} / {all_errors.min():.4f} / {all_errors.max():.4f}"
-            )
-            self.termination_stats["success_pos_error"] = []  # Reset
-
-        if self.termination_stats["success_orn_error"]:
-            all_errors = torch.cat(self.termination_stats["success_orn_error"])
-            print(
-                f"Success Orn Error (avg/min/max): "
-                f"{all_errors.mean():.4f} / {all_errors.min():.4f} / {all_errors.max():.4f}"
-            )
-            self.termination_stats["success_orn_error"] = []  # Reset
-
-        if self.termination_stats["timeout_pos_error"]:
-            all_errors = torch.cat(self.termination_stats["timeout_pos_error"])
-            print(
-                f"Timeout Pos Error (avg/min/max): "
-                f"{all_errors.mean():.4f} / {all_errors.min():.4f} / {all_errors.max():.4f}"
-            )
-            self.termination_stats["timeout_pos_error"] = []  # Reset
-
-        if self.termination_stats["timeout_orn_error"]:
-            all_errors = torch.cat(self.termination_stats["timeout_orn_error"])
-            print(
-                f"Timeout Orn Error (avg/min/max): "
-                f"{all_errors.mean():.4f} / {all_errors.min():.4f} / {all_errors.max():.4f}"
-            )
-            self.termination_stats["timeout_orn_error"] = []  # Reset
 
     def _get_dones(self) -> tuple[torch.Tensor, torch.Tensor]:
         time_out = self.episode_length_buf >= self.max_episode_length - 1
@@ -186,25 +135,6 @@ class ReachingEnv(DirectRLEnv):
         terminated_success = (current_dist_to_target < self.cfg.pos_tolerance) & (
             current_ang_dist_to_target < self.cfg.orn_tolerance
         )
-
-        # Store termination stats
-        if torch.any(terminated_success):
-            success_env_ids = torch.where(terminated_success)[0]
-            self.termination_stats["success_pos_error"].append(
-                current_dist_to_target[success_env_ids]
-            )
-            self.termination_stats["success_orn_error"].append(
-                current_ang_dist_to_target[success_env_ids]
-            )
-
-        if torch.any(time_out):
-            timeout_env_ids = torch.where(time_out)[0]
-            self.termination_stats["timeout_pos_error"].append(
-                current_dist_to_target[timeout_env_ids]
-            )
-            self.termination_stats["timeout_orn_error"].append(
-                current_ang_dist_to_target[timeout_env_ids]
-            )
 
         return terminated_success, time_out
 
@@ -263,12 +193,5 @@ def compute_rewards(
     success_reward = rew_success_bonus * terminated.float()
     action_cost = action_penalty * torch.sum(torch.square(actions), dim=1)
     reward = pos_reward + orn_reward + success_reward + action_cost
-
-    # TODO: check this
-    # Apply termination penalty on timeout
-    timeout_penalty = -2.0
-    reward = torch.where(
-        reset_buf & ~terminated, torch.full_like(reward, timeout_penalty), reward
-    )
 
     return reward
