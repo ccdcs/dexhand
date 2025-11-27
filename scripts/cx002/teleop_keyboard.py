@@ -114,7 +114,7 @@ def main():
 
     robot = scene["robot"]
     input_interface = carb.input.acquire_input_interface()
-    keyboard_device = carb.input.Keyboard()
+    keyboard_device = input_interface.get_keyboard()
     
     joint_targets = robot.data.joint_pos.clone()
     joint_step = 0.1
