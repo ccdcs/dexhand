@@ -180,39 +180,39 @@ def main():
     sim_dt = sim.get_physics_dt()
     while simulation_app.is_running():
         if bow_pitch_01_idx is not None:
-            if keyboard.get_keyboard_value(carb.input.KeyboardInput.KEY_W):
+            if keyboard.get_keyboard_value(ord('w')) or keyboard.get_keyboard_value(ord('W')):
                 joint_targets[0, bow_pitch_01_idx] += joint_step
-            if keyboard.get_keyboard_value(carb.input.KeyboardInput.KEY_S):
+            if keyboard.get_keyboard_value(ord('s')) or keyboard.get_keyboard_value(ord('S')):
                 joint_targets[0, bow_pitch_01_idx] -= joint_step
         
         if bow_yaw_idx is not None:
-            if keyboard.get_keyboard_value(carb.input.KeyboardInput.KEY_A):
+            if keyboard.get_keyboard_value(ord('a')) or keyboard.get_keyboard_value(ord('A')):
                 joint_targets[0, bow_yaw_idx] += joint_step
-            if keyboard.get_keyboard_value(carb.input.KeyboardInput.KEY_D):
+            if keyboard.get_keyboard_value(ord('d')) or keyboard.get_keyboard_value(ord('D')):
                 joint_targets[0, bow_yaw_idx] -= joint_step
         
         if bow_pitch_02_idx is not None:
-            if keyboard.get_keyboard_value(carb.input.KeyboardInput.KEY_Q):
+            if keyboard.get_keyboard_value(ord('q')) or keyboard.get_keyboard_value(ord('Q')):
                 joint_targets[0, bow_pitch_02_idx] += joint_step
-            if keyboard.get_keyboard_value(carb.input.KeyboardInput.KEY_E):
+            if keyboard.get_keyboard_value(ord('e')) or keyboard.get_keyboard_value(ord('E')):
                 joint_targets[0, bow_pitch_02_idx] -= joint_step
         
         if bow_pitch_03_idx is not None:
-            if keyboard.get_keyboard_value(carb.input.KeyboardInput.KEY_Z):
+            if keyboard.get_keyboard_value(ord('z')) or keyboard.get_keyboard_value(ord('Z')):
                 joint_targets[0, bow_pitch_03_idx] += joint_step
-            if keyboard.get_keyboard_value(carb.input.KeyboardInput.KEY_C):
+            if keyboard.get_keyboard_value(ord('c')) or keyboard.get_keyboard_value(ord('C')):
                 joint_targets[0, bow_pitch_03_idx] -= joint_step
         
         if head_yaw_idx is not None:
-            if keyboard.get_keyboard_value(carb.input.KeyboardInput.KEY_T):
+            if keyboard.get_keyboard_value(ord('t')) or keyboard.get_keyboard_value(ord('T')):
                 joint_targets[0, head_yaw_idx] += joint_step
-            if keyboard.get_keyboard_value(carb.input.KeyboardInput.KEY_G):
+            if keyboard.get_keyboard_value(ord('g')) or keyboard.get_keyboard_value(ord('G')):
                 joint_targets[0, head_yaw_idx] -= joint_step
         
         if head_pitch_idx is not None:
-            if keyboard.get_keyboard_value(carb.input.KeyboardInput.KEY_R):
+            if keyboard.get_keyboard_value(ord('r')) or keyboard.get_keyboard_value(ord('R')):
                 joint_targets[0, head_pitch_idx] += joint_step
-            if keyboard.get_keyboard_value(carb.input.KeyboardInput.KEY_F):
+            if keyboard.get_keyboard_value(ord('f')) or keyboard.get_keyboard_value(ord('F')):
                 joint_targets[0, head_pitch_idx] -= joint_step
         
         if left_shoulder_pitch_idx is not None:
@@ -258,25 +258,25 @@ def main():
                 joint_targets[0, left_wrist_pitch_idx] += joint_step
         
         if right_shoulder_pitch_idx is not None:
-            if keyboard.get_keyboard_value(carb.input.KeyboardInput.KEY_I):
+            if keyboard.get_keyboard_value(ord('i')) or keyboard.get_keyboard_value(ord('I')):
                 joint_targets[0, right_shoulder_pitch_idx] -= joint_step
-            if keyboard.get_keyboard_value(carb.input.KeyboardInput.KEY_O):
+            if keyboard.get_keyboard_value(ord('o')) or keyboard.get_keyboard_value(ord('O')):
                 joint_targets[0, right_shoulder_pitch_idx] += joint_step
         
         if right_shoulder_roll_idx is not None:
-            if keyboard.get_keyboard_value(carb.input.KeyboardInput.KEY_K):
+            if keyboard.get_keyboard_value(ord('k')) or keyboard.get_keyboard_value(ord('K')):
                 joint_targets[0, right_shoulder_roll_idx] -= joint_step
-            if keyboard.get_keyboard_value(carb.input.KeyboardInput.KEY_L):
+            if keyboard.get_keyboard_value(ord('l')) or keyboard.get_keyboard_value(ord('L')):
                 joint_targets[0, right_shoulder_roll_idx] += joint_step
         
         if right_shoulder_yaw_idx is not None:
-            if keyboard.get_keyboard_value(carb.input.KeyboardInput.KEY_J):
+            if keyboard.get_keyboard_value(ord('j')) or keyboard.get_keyboard_value(ord('J')):
                 joint_targets[0, right_shoulder_yaw_idx] -= joint_step
-            if keyboard.get_keyboard_value(carb.input.KeyboardInput.KEY_H):
+            if keyboard.get_keyboard_value(ord('h')) or keyboard.get_keyboard_value(ord('H')):
                 joint_targets[0, right_shoulder_yaw_idx] += joint_step
         
         if right_elbow_roll_idx is not None:
-            if keyboard.get_keyboard_value(carb.input.KeyboardInput.KEY_M):
+            if keyboard.get_keyboard_value(ord('m')) or keyboard.get_keyboard_value(ord('M')):
                 joint_targets[0, right_elbow_roll_idx] -= joint_step
             if keyboard.get_keyboard_value(carb.input.KeyboardInput.KEY_COMMA):
                 joint_targets[0, right_elbow_roll_idx] += joint_step
@@ -294,7 +294,7 @@ def main():
                 joint_targets[0, right_wrist_roll_idx] += joint_step
         
         if right_wrist_pitch_idx is not None:
-            if keyboard.get_keyboard_value(carb.input.KeyboardInput.KEY_P):
+            if keyboard.get_keyboard_value(ord('p')) or keyboard.get_keyboard_value(ord('P')):
                 joint_targets[0, right_wrist_pitch_idx] -= joint_step
             if keyboard.get_keyboard_value(carb.input.KeyboardInput.KEY_BACKSLASH):
                 joint_targets[0, right_wrist_pitch_idx] += joint_step
