@@ -120,7 +120,10 @@ def main():
     
     def get_joint_idx(joint_name):
         idx, _ = robot.find_joints(joint_name)
-        return idx[0].item() if idx is not None and len(idx) > 0 else None
+        if idx is not None and len(idx) > 0:
+            val = idx[0]
+            return val.item() if hasattr(val, 'item') else val
+        return None
     
     bow_pitch_01_idx = get_joint_idx("bow_pitch_joint_01")
     bow_pitch_02_idx = get_joint_idx("bow_pitch_joint_02")
