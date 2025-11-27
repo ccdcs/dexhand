@@ -80,6 +80,17 @@ def main():
     
     base_velocity = torch.zeros((args_cli.num_envs, 3), device=sim.device)
     base_speed = 0.5
+    
+    joint_targets = robot.data.default_joint_pos.clone()
+    num_joints = joint_targets.shape[1]
+    
+    print("[INFO]: Setting robot to upright pose...")
+    for _ in range(100):
+        robot.set_joint_position_target(joint_targets)
+        sim.step(render=False)
+        scene.update(sim.get_physics_dt())
+    
+    print("[INFO]: Robot stabilized.")
 
     print("[INFO]: Setup complete...")
     print("[INFO]: Click on the 3D viewport to give it focus, then use:")
@@ -107,6 +118,8 @@ def main():
         except:
             pass
 
+        robot.set_joint_position_target(joint_targets)
+        
         root_state = robot.data.root_state_w.clone()
         root_state[:, 7:10] = base_velocity
         robot.write_root_state_to_sim(root_state, torch.arange(args_cli.num_envs, device=sim.device))
