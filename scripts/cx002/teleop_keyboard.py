@@ -6,6 +6,38 @@
 """
 Keyboard teleoperation script for cx002 humanoid robot.
 Controls robot joints using keyboard input.
+
+Control Scheme:
+
+Base/Torso (WASD)
+W/S: Torso pitch forward/back (bow_pitch_joint_01)
+A/D: Torso yaw left/right (bow_yaw_joint)
+Q/E: Torso pitch 02
+Z/C: Torso pitch 03
+
+Head:
+T/G: Head yaw left/right
+R/F: Head pitch up/down
+
+Left Arm:
+1/2: Shoulder pitch
+3/4: Shoulder roll
+5/6: Shoulder yaw
+7/8: Elbow roll
+9/0: Elbow yaw
+-/=: Wrist roll
+[/]: Wrist pitch
+
+Right Arm:
+I/O: Shoulder pitch
+K/L: Shoulder roll
+J/H: Shoulder yaw
+M/,: Elbow roll
+.//: Elbow yaw
+;/': Wrist roll
+P/\\: Wrist pitch
+
+Space: Reset all joints to zero
 """
 
 import argparse
@@ -136,9 +168,9 @@ def main():
     print("          K/L: Shoulder roll")
     print("          J/H: Shoulder yaw")
     print("          M/,: Elbow roll")
-        print("          .//: Elbow yaw")
-        print("          ;/': Wrist roll")
-        print("          P/\\: Wrist pitch")
+    print("          .//: Elbow yaw")
+    print("          ;/': Wrist roll")
+    print("          P/\\: Wrist pitch")
     print("        Space: Reset all joints to zero")
     print("        Ctrl+C: Exit")
 
