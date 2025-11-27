@@ -88,33 +88,49 @@ def main():
     bow_pitch_03_idx, _ = robot.find_joints("bow_pitch_joint_03")
     bow_yaw_idx, _ = robot.find_joints("bow_yaw_joint")
     
+    print(f"[DEBUG]: Found bow joints - pitch01: {bow_pitch_01_idx}, pitch02: {bow_pitch_02_idx}, pitch03: {bow_pitch_03_idx}, yaw: {bow_yaw_idx}")
+    
     if bow_pitch_01_idx is not None and len(bow_pitch_01_idx) > 0:
         idx = bow_pitch_01_idx[0].item() if hasattr(bow_pitch_01_idx[0], 'item') else bow_pitch_01_idx[0]
         joint_targets[:, idx] = 0.0
+        print(f"[DEBUG]: Set bow_pitch_joint_01 (idx {idx}) to 0.0")
     if bow_pitch_02_idx is not None and len(bow_pitch_02_idx) > 0:
         idx = bow_pitch_02_idx[0].item() if hasattr(bow_pitch_02_idx[0], 'item') else bow_pitch_02_idx[0]
         joint_targets[:, idx] = 0.0
+        print(f"[DEBUG]: Set bow_pitch_joint_02 (idx {idx}) to 0.0")
     if bow_pitch_03_idx is not None and len(bow_pitch_03_idx) > 0:
         idx = bow_pitch_03_idx[0].item() if hasattr(bow_pitch_03_idx[0], 'item') else bow_pitch_03_idx[0]
         joint_targets[:, idx] = 0.0
+        print(f"[DEBUG]: Set bow_pitch_joint_03 (idx {idx}) to 0.0")
     if bow_yaw_idx is not None and len(bow_yaw_idx) > 0:
         idx = bow_yaw_idx[0].item() if hasattr(bow_yaw_idx[0], 'item') else bow_yaw_idx[0]
         joint_targets[:, idx] = 0.0
+        print(f"[DEBUG]: Set bow_yaw_joint (idx {idx}) to 0.0")
     
     print("[INFO]: Setting robot to upright pose...")
-    for _ in range(200):
+    root_state = robot.data.root_state_w.clone()
+    root_state[:, 3:7] = torch.tensor([1.0, 0.0, 0.0, 0.0], device=sim.device)
+    robot.write_root_state_to_sim(root_state, torch.arange(args_cli.num_envs, device=sim.device))
+    
+    for i in range(300):
         robot.set_joint_position_target(joint_targets)
+        root_state = robot.data.root_state_w.clone()
+        root_state[:, 3:7] = torch.tensor([1.0, 0.0, 0.0, 0.0], device=sim.device)
+        robot.write_root_state_to_sim(root_state, torch.arange(args_cli.num_envs, device=sim.device))
         sim.step(render=False)
         scene.update(sim.get_physics_dt())
+        if i % 50 == 0:
+            current_pos = robot.data.joint_pos[0]
+            print(f"[DEBUG]: Step {i}, joint positions: {current_pos[:10] if len(current_pos) > 10 else current_pos}")
     
     print("[INFO]: Robot stabilized.")
 
     print("[INFO]: Setup complete...")
-    print("[INFO]: Use Arrow Keys to move the base:")
-    print("        ↑ (Up Arrow): Move forward")
-    print("        ↓ (Down Arrow): Move backward")
-    print("        ← (Left Arrow): Move left")
-    print("        → (Right Arrow): Move right")
+    print("[INFO]: Use I/J/K/L keys to move the base:")
+    print("        I: Move forward")
+    print("        K: Move backward")
+    print("        J: Move left")
+    print("        L: Move right")
     print("        Ctrl+C: Exit")
 
     sim_dt = sim.get_physics_dt()
@@ -124,13 +140,13 @@ def main():
         try:
             keyboard = carb.input.get_keyboard()
             if keyboard:
-                if input_interface.get_keyboard_value(keyboard, carb.input.KeyboardInput.KEY_UP):
+                if input_interface.get_keyboard_value(keyboard, ord('i')) or input_interface.get_keyboard_value(keyboard, ord('I')):
                     base_velocity[:, 0] = base_speed
-                if input_interface.get_keyboard_value(keyboard, carb.input.KeyboardInput.KEY_DOWN):
+                if input_interface.get_keyboard_value(keyboard, ord('k')) or input_interface.get_keyboard_value(keyboard, ord('K')):
                     base_velocity[:, 0] = -base_speed
-                if input_interface.get_keyboard_value(keyboard, carb.input.KeyboardInput.KEY_LEFT):
+                if input_interface.get_keyboard_value(keyboard, ord('j')) or input_interface.get_keyboard_value(keyboard, ord('J')):
                     base_velocity[:, 1] = base_speed
-                if input_interface.get_keyboard_value(keyboard, carb.input.KeyboardInput.KEY_RIGHT):
+                if input_interface.get_keyboard_value(keyboard, ord('l')) or input_interface.get_keyboard_value(keyboard, ord('L')):
                     base_velocity[:, 1] = -base_speed
         except:
             pass
@@ -138,6 +154,7 @@ def main():
         robot.set_joint_position_target(joint_targets)
         
         root_state = robot.data.root_state_w.clone()
+        root_state[:, 3:7] = torch.tensor([1.0, 0.0, 0.0, 0.0], device=sim.device)
         root_state[:, 7:10] = base_velocity
         robot.write_root_state_to_sim(root_state, torch.arange(args_cli.num_envs, device=sim.device))
 
