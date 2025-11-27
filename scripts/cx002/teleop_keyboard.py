@@ -4,49 +4,14 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 """
-Keyboard teleoperation script for cx002 humanoid robot.
-Controls robot joints using keyboard input.
-
-Control Scheme:
-
-Base/Torso (WASD)
-W/S: Torso pitch forward/back (bow_pitch_joint_01)
-A/D: Torso yaw left/right (bow_yaw_joint)
-Q/E: Torso pitch 02
-Z/C: Torso pitch 03
-
-Head:
-T/G: Head yaw left/right
-R/F: Head pitch up/down
-
-Left Arm:
-1/2: Shoulder pitch
-3/4: Shoulder roll
-5/6: Shoulder yaw
-7/8: Elbow roll
-9/0: Elbow yaw
--/=: Wrist roll
-[/]: Wrist pitch
-
-Right Arm:
-I/O: Shoulder pitch
-K/L: Shoulder roll
-J/H: Shoulder yaw
-M/,: Elbow roll
-.//: Elbow yaw
-;/': Wrist roll
-P/\\: Wrist pitch
-
-Space: Reset all joints to zero
+Simple keyboard teleoperation for cx002 robot base using WASD.
 """
 
 import argparse
 
 from isaaclab.app import AppLauncher
 
-parser = argparse.ArgumentParser(
-    description="Keyboard teleoperation for cx002 humanoid robot."
-)
+parser = argparse.ArgumentParser(description="Keyboard teleoperation for cx002 robot base.")
 parser.add_argument("--num_envs", type=int, default=1, help="Number of environments to spawn.")
 AppLauncher.add_app_launcher_args(parser)
 args_cli = parser.parse_args()
@@ -104,206 +69,44 @@ class Cx002SceneCfg(InteractiveSceneCfg):
 def main():
     sim_cfg = sim_utils.SimulationCfg(device=args_cli.device)
     sim = sim_utils.SimulationContext(sim_cfg)
-
     sim.set_camera_view([2.5, 2.5, 2.5], [0.0, 0.0, 0.5])
 
     scene_cfg = Cx002SceneCfg(num_envs=args_cli.num_envs, env_spacing=2.0)
     scene = InteractiveScene(scene_cfg)
-
     sim.reset()
 
     robot = scene["robot"]
     input_interface = carb.input.acquire_input_interface()
-    keyboard_device = input_interface.get_keyboard()
-    
-    joint_targets = robot.data.joint_pos.clone()
-    joint_step = 0.1
-    
-    def get_joint_idx(joint_name):
-        idx, _ = robot.find_joints(joint_name)
-        if idx is not None and len(idx) > 0:
-            val = idx[0]
-            return val.item() if hasattr(val, 'item') else val
-        return None
-    
-    bow_pitch_01_idx = get_joint_idx("bow_pitch_joint_01")
-    bow_pitch_02_idx = get_joint_idx("bow_pitch_joint_02")
-    bow_pitch_03_idx = get_joint_idx("bow_pitch_joint_03")
-    bow_yaw_idx = get_joint_idx("bow_yaw_joint")
-    head_yaw_idx = get_joint_idx("head_yaw_joint")
-    head_pitch_idx = get_joint_idx("head_pitch_joint")
-    
-    left_shoulder_pitch_idx = get_joint_idx("left_shoulder_pitch_joint")
-    left_shoulder_roll_idx = get_joint_idx("left_shoulder_roll_joint")
-    left_shoulder_yaw_idx = get_joint_idx("left_shoulder_yaw_joint")
-    left_elbow_roll_idx = get_joint_idx("left_elbow_roll_joint")
-    left_elbow_yaw_idx = get_joint_idx("left_elbow_yaw_joint")
-    left_wrist_roll_idx = get_joint_idx("left_wrist_roll_joint")
-    left_wrist_pitch_idx = get_joint_idx("left_wrist_pitch_joint")
-    
-    right_shoulder_pitch_idx = get_joint_idx("right_shoulder_pitch_joint")
-    right_shoulder_roll_idx = get_joint_idx("right_shoulder_roll_joint")
-    right_shoulder_yaw_idx = get_joint_idx("right_shoulder_yaw_joint")
-    right_elbow_roll_idx = get_joint_idx("right_elbow_roll_joint")
-    right_elbow_yaw_idx = get_joint_idx("right_elbow_yaw_joint")
-    right_wrist_roll_idx = get_joint_idx("right_wrist_roll_joint")
-    right_wrist_pitch_idx = get_joint_idx("right_wrist_pitch_joint")
-    
+    keyboard = input_interface.get_keyboard()
+
+    base_velocity = torch.zeros((args_cli.num_envs, 3), device=sim.device)
+    base_speed = 0.5
+
     print("[INFO]: Setup complete...")
     print("[INFO]: Keyboard controls:")
-    print("        Base/Torso:")
-    print("          W/S: Torso pitch forward/back (bow_pitch_joint_01)")
-    print("          A/D: Torso yaw left/right (bow_yaw_joint)")
-    print("          Q/E: Torso pitch 02 up/down")
-    print("          Z/C: Torso pitch 03 up/down")
-    print("        Head:")
-    print("          T/G: Head yaw left/right")
-    print("          R/F: Head pitch up/down")
-    print("        Left Arm:")
-    print("          1/2: Shoulder pitch")
-    print("          3/4: Shoulder roll")
-    print("          5/6: Shoulder yaw")
-    print("          7/8: Elbow roll")
-    print("          9/0: Elbow yaw")
-    print("          -/=: Wrist roll")
-    print("          [/]: Wrist pitch")
-    print("        Right Arm:")
-    print("          I/O: Shoulder pitch")
-    print("          K/L: Shoulder roll")
-    print("          J/H: Shoulder yaw")
-    print("          M/,: Elbow roll")
-    print("          .//: Elbow yaw")
-    print("          ;/': Wrist roll")
-    print("          P/\\: Wrist pitch")
-    print("        Space: Reset all joints to zero")
+    print("        W: Move forward")
+    print("        S: Move backward")
+    print("        A: Move left")
+    print("        D: Move right")
+    print("        Space: Stop")
     print("        Ctrl+C: Exit")
 
     sim_dt = sim.get_physics_dt()
     while simulation_app.is_running():
-        if bow_pitch_01_idx is not None:
-            if input_interface.get_keyboard_value(keyboard_device, ord('w')) or input_interface.get_keyboard_value(keyboard, ord('W')):
-                joint_targets[0, bow_pitch_01_idx] += joint_step
-            if input_interface.get_keyboard_value(keyboard_device, ord('s')) or input_interface.get_keyboard_value(keyboard, ord('S')):
-                joint_targets[0, bow_pitch_01_idx] -= joint_step
-        
-        if bow_yaw_idx is not None:
-            if input_interface.get_keyboard_value(keyboard_device, ord('a')) or input_interface.get_keyboard_value(keyboard, ord('A')):
-                joint_targets[0, bow_yaw_idx] += joint_step
-            if input_interface.get_keyboard_value(keyboard_device, ord('d')) or input_interface.get_keyboard_value(keyboard, ord('D')):
-                joint_targets[0, bow_yaw_idx] -= joint_step
-        
-        if bow_pitch_02_idx is not None:
-            if input_interface.get_keyboard_value(keyboard_device, ord('q')) or input_interface.get_keyboard_value(keyboard, ord('Q')):
-                joint_targets[0, bow_pitch_02_idx] += joint_step
-            if input_interface.get_keyboard_value(keyboard_device, ord('e')) or input_interface.get_keyboard_value(keyboard, ord('E')):
-                joint_targets[0, bow_pitch_02_idx] -= joint_step
-        
-        if bow_pitch_03_idx is not None:
-            if input_interface.get_keyboard_value(keyboard_device, ord('z')) or input_interface.get_keyboard_value(keyboard, ord('Z')):
-                joint_targets[0, bow_pitch_03_idx] += joint_step
-            if input_interface.get_keyboard_value(keyboard_device, ord('c')) or input_interface.get_keyboard_value(keyboard, ord('C')):
-                joint_targets[0, bow_pitch_03_idx] -= joint_step
-        
-        if head_yaw_idx is not None:
-            if input_interface.get_keyboard_value(keyboard_device, ord('t')) or input_interface.get_keyboard_value(keyboard, ord('T')):
-                joint_targets[0, head_yaw_idx] += joint_step
-            if input_interface.get_keyboard_value(keyboard_device, ord('g')) or input_interface.get_keyboard_value(keyboard, ord('G')):
-                joint_targets[0, head_yaw_idx] -= joint_step
-        
-        if head_pitch_idx is not None:
-            if input_interface.get_keyboard_value(keyboard_device, ord('r')) or input_interface.get_keyboard_value(keyboard, ord('R')):
-                joint_targets[0, head_pitch_idx] += joint_step
-            if input_interface.get_keyboard_value(keyboard_device, ord('f')) or input_interface.get_keyboard_value(keyboard, ord('F')):
-                joint_targets[0, head_pitch_idx] -= joint_step
-        
-        if left_shoulder_pitch_idx is not None:
-            if input_interface.get_keyboard_value(keyboard_device, carb.input.KeyboardInput.KEY_1):
-                joint_targets[0, left_shoulder_pitch_idx] -= joint_step
-            if input_interface.get_keyboard_value(keyboard_device, carb.input.KeyboardInput.KEY_2):
-                joint_targets[0, left_shoulder_pitch_idx] += joint_step
-        
-        if left_shoulder_roll_idx is not None:
-            if input_interface.get_keyboard_value(keyboard_device, carb.input.KeyboardInput.KEY_3):
-                joint_targets[0, left_shoulder_roll_idx] -= joint_step
-            if input_interface.get_keyboard_value(keyboard_device, carb.input.KeyboardInput.KEY_4):
-                joint_targets[0, left_shoulder_roll_idx] += joint_step
-        
-        if left_shoulder_yaw_idx is not None:
-            if input_interface.get_keyboard_value(keyboard_device, carb.input.KeyboardInput.KEY_5):
-                joint_targets[0, left_shoulder_yaw_idx] -= joint_step
-            if input_interface.get_keyboard_value(keyboard_device, carb.input.KeyboardInput.KEY_6):
-                joint_targets[0, left_shoulder_yaw_idx] += joint_step
-        
-        if left_elbow_roll_idx is not None:
-            if input_interface.get_keyboard_value(keyboard_device, carb.input.KeyboardInput.KEY_7):
-                joint_targets[0, left_elbow_roll_idx] -= joint_step
-            if input_interface.get_keyboard_value(keyboard_device, carb.input.KeyboardInput.KEY_8):
-                joint_targets[0, left_elbow_roll_idx] += joint_step
-        
-        if left_elbow_yaw_idx is not None:
-            if input_interface.get_keyboard_value(keyboard_device, carb.input.KeyboardInput.KEY_9):
-                joint_targets[0, left_elbow_yaw_idx] -= joint_step
-            if input_interface.get_keyboard_value(keyboard_device, carb.input.KeyboardInput.KEY_0):
-                joint_targets[0, left_elbow_yaw_idx] += joint_step
-        
-        if left_wrist_roll_idx is not None:
-            if input_interface.get_keyboard_value(keyboard_device, carb.input.KeyboardInput.KEY_MINUS):
-                joint_targets[0, left_wrist_roll_idx] -= joint_step
-            if input_interface.get_keyboard_value(keyboard_device, carb.input.KeyboardInput.KEY_EQUALS):
-                joint_targets[0, left_wrist_roll_idx] += joint_step
-        
-        if left_wrist_pitch_idx is not None:
-            if input_interface.get_keyboard_value(keyboard_device, carb.input.KeyboardInput.KEY_LEFTBRACKET):
-                joint_targets[0, left_wrist_pitch_idx] -= joint_step
-            if input_interface.get_keyboard_value(keyboard_device, carb.input.KeyboardInput.KEY_RIGHTBRACKET):
-                joint_targets[0, left_wrist_pitch_idx] += joint_step
-        
-        if right_shoulder_pitch_idx is not None:
-            if input_interface.get_keyboard_value(keyboard_device, ord('i')) or input_interface.get_keyboard_value(keyboard, ord('I')):
-                joint_targets[0, right_shoulder_pitch_idx] -= joint_step
-            if input_interface.get_keyboard_value(keyboard_device, ord('o')) or input_interface.get_keyboard_value(keyboard, ord('O')):
-                joint_targets[0, right_shoulder_pitch_idx] += joint_step
-        
-        if right_shoulder_roll_idx is not None:
-            if input_interface.get_keyboard_value(keyboard_device, ord('k')) or input_interface.get_keyboard_value(keyboard, ord('K')):
-                joint_targets[0, right_shoulder_roll_idx] -= joint_step
-            if input_interface.get_keyboard_value(keyboard_device, ord('l')) or input_interface.get_keyboard_value(keyboard, ord('L')):
-                joint_targets[0, right_shoulder_roll_idx] += joint_step
-        
-        if right_shoulder_yaw_idx is not None:
-            if input_interface.get_keyboard_value(keyboard_device, ord('j')) or input_interface.get_keyboard_value(keyboard, ord('J')):
-                joint_targets[0, right_shoulder_yaw_idx] -= joint_step
-            if input_interface.get_keyboard_value(keyboard_device, ord('h')) or input_interface.get_keyboard_value(keyboard, ord('H')):
-                joint_targets[0, right_shoulder_yaw_idx] += joint_step
-        
-        if right_elbow_roll_idx is not None:
-            if input_interface.get_keyboard_value(keyboard_device, ord('m')) or input_interface.get_keyboard_value(keyboard, ord('M')):
-                joint_targets[0, right_elbow_roll_idx] -= joint_step
-            if input_interface.get_keyboard_value(keyboard_device, carb.input.KeyboardInput.KEY_COMMA):
-                joint_targets[0, right_elbow_roll_idx] += joint_step
-        
-        if right_elbow_yaw_idx is not None:
-            if input_interface.get_keyboard_value(keyboard_device, carb.input.KeyboardInput.KEY_PERIOD):
-                joint_targets[0, right_elbow_yaw_idx] -= joint_step
-            if input_interface.get_keyboard_value(keyboard_device, carb.input.KeyboardInput.KEY_SLASH):
-                joint_targets[0, right_elbow_yaw_idx] += joint_step
-        
-        if right_wrist_roll_idx is not None:
-            if input_interface.get_keyboard_value(keyboard_device, carb.input.KeyboardInput.KEY_SEMICOLON):
-                joint_targets[0, right_wrist_roll_idx] -= joint_step
-            if input_interface.get_keyboard_value(keyboard_device, carb.input.KeyboardInput.KEY_APOSTROPHE):
-                joint_targets[0, right_wrist_roll_idx] += joint_step
-        
-        if right_wrist_pitch_idx is not None:
-            if input_interface.get_keyboard_value(keyboard_device, ord('p')) or input_interface.get_keyboard_value(keyboard, ord('P')):
-                joint_targets[0, right_wrist_pitch_idx] -= joint_step
-            if input_interface.get_keyboard_value(keyboard_device, carb.input.KeyboardInput.KEY_BACKSLASH):
-                joint_targets[0, right_wrist_pitch_idx] += joint_step
-        
-        if input_interface.get_keyboard_value(keyboard, carb.input.KeyboardInput.KEY_SPACE):
-            joint_targets.zero_()
+        base_velocity.zero_()
 
-        robot.set_joint_position_target(joint_targets)
+        if input_interface.get_keyboard_value(keyboard, ord('w')) or input_interface.get_keyboard_value(keyboard, ord('W')):
+            base_velocity[:, 0] = base_speed
+        if input_interface.get_keyboard_value(keyboard, ord('s')) or input_interface.get_keyboard_value(keyboard, ord('S')):
+            base_velocity[:, 0] = -base_speed
+        if input_interface.get_keyboard_value(keyboard, ord('a')) or input_interface.get_keyboard_value(keyboard, ord('A')):
+            base_velocity[:, 1] = base_speed
+        if input_interface.get_keyboard_value(keyboard, ord('d')) or input_interface.get_keyboard_value(keyboard, ord('D')):
+            base_velocity[:, 1] = -base_speed
+
+        root_state = robot.data.root_state_w.clone()
+        root_state[:, 7:10] = base_velocity
+        robot.write_root_state_to_sim(root_state, torch.arange(args_cli.num_envs, device=sim.device))
 
         sim.step(render=True)
         scene.update(sim_dt)
@@ -312,4 +115,3 @@ def main():
 if __name__ == "__main__":
     main()
     simulation_app.close()
-
