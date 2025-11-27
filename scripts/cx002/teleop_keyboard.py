@@ -48,8 +48,8 @@ CX002_CONFIG = ArticulationCfg(
             joint_names_expr=[".*"],
             effort_limit_sim=100.0,
             velocity_limit_sim=100.0,
-            stiffness=500.0,
-            damping=500.0,
+            stiffness=1000.0,
+            damping=1000.0,
         ),
     },
 )
@@ -82,10 +82,27 @@ def main():
     base_speed = 0.5
     
     joint_targets = robot.data.default_joint_pos.clone()
-    num_joints = joint_targets.shape[1]
+    
+    bow_pitch_01_idx, _ = robot.find_joints("bow_pitch_joint_01")
+    bow_pitch_02_idx, _ = robot.find_joints("bow_pitch_joint_02")
+    bow_pitch_03_idx, _ = robot.find_joints("bow_pitch_joint_03")
+    bow_yaw_idx, _ = robot.find_joints("bow_yaw_joint")
+    
+    if bow_pitch_01_idx is not None and len(bow_pitch_01_idx) > 0:
+        idx = bow_pitch_01_idx[0].item() if hasattr(bow_pitch_01_idx[0], 'item') else bow_pitch_01_idx[0]
+        joint_targets[:, idx] = 0.0
+    if bow_pitch_02_idx is not None and len(bow_pitch_02_idx) > 0:
+        idx = bow_pitch_02_idx[0].item() if hasattr(bow_pitch_02_idx[0], 'item') else bow_pitch_02_idx[0]
+        joint_targets[:, idx] = 0.0
+    if bow_pitch_03_idx is not None and len(bow_pitch_03_idx) > 0:
+        idx = bow_pitch_03_idx[0].item() if hasattr(bow_pitch_03_idx[0], 'item') else bow_pitch_03_idx[0]
+        joint_targets[:, idx] = 0.0
+    if bow_yaw_idx is not None and len(bow_yaw_idx) > 0:
+        idx = bow_yaw_idx[0].item() if hasattr(bow_yaw_idx[0], 'item') else bow_yaw_idx[0]
+        joint_targets[:, idx] = 0.0
     
     print("[INFO]: Setting robot to upright pose...")
-    for _ in range(100):
+    for _ in range(200):
         robot.set_joint_position_target(joint_targets)
         sim.step(render=False)
         scene.update(sim.get_physics_dt())
@@ -93,11 +110,11 @@ def main():
     print("[INFO]: Robot stabilized.")
 
     print("[INFO]: Setup complete...")
-    print("[INFO]: Click on the 3D viewport to give it focus, then use:")
-    print("        W: Move forward")
-    print("        S: Move backward")
-    print("        A: Move left")
-    print("        D: Move right")
+    print("[INFO]: Use Arrow Keys to move the base:")
+    print("        ↑ (Up Arrow): Move forward")
+    print("        ↓ (Down Arrow): Move backward")
+    print("        ← (Left Arrow): Move left")
+    print("        → (Right Arrow): Move right")
     print("        Ctrl+C: Exit")
 
     sim_dt = sim.get_physics_dt()
@@ -107,13 +124,13 @@ def main():
         try:
             keyboard = carb.input.get_keyboard()
             if keyboard:
-                if input_interface.get_keyboard_value(keyboard, ord('w')) or input_interface.get_keyboard_value(keyboard, ord('W')):
+                if input_interface.get_keyboard_value(keyboard, carb.input.KeyboardInput.KEY_UP):
                     base_velocity[:, 0] = base_speed
-                if input_interface.get_keyboard_value(keyboard, ord('s')) or input_interface.get_keyboard_value(keyboard, ord('S')):
+                if input_interface.get_keyboard_value(keyboard, carb.input.KeyboardInput.KEY_DOWN):
                     base_velocity[:, 0] = -base_speed
-                if input_interface.get_keyboard_value(keyboard, ord('a')) or input_interface.get_keyboard_value(keyboard, ord('A')):
+                if input_interface.get_keyboard_value(keyboard, carb.input.KeyboardInput.KEY_LEFT):
                     base_velocity[:, 1] = base_speed
-                if input_interface.get_keyboard_value(keyboard, ord('d')) or input_interface.get_keyboard_value(keyboard, ord('D')):
+                if input_interface.get_keyboard_value(keyboard, carb.input.KeyboardInput.KEY_RIGHT):
                     base_velocity[:, 1] = -base_speed
         except:
             pass
