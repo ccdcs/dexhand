@@ -46,10 +46,10 @@ CX002_CONFIG = ArticulationCfg(
     actuators={
         "all_joints": ImplicitActuatorCfg(
             joint_names_expr=[".*"],
-            effort_limit_sim=100.0,
+            effort_limit_sim=500.0,
             velocity_limit_sim=100.0,
-            stiffness=1000.0,
-            damping=1000.0,
+            stiffness=5000.0,
+            damping=2000.0,
         ),
     },
 )
@@ -80,6 +80,35 @@ def main():
     
     base_velocity = torch.zeros((args_cli.num_envs, 3), device=sim.device)
     base_speed = 0.5
+    keys_pressed = {"i": False, "k": False, "j": False, "l": False}
+    
+    def keyboard_event_handler(event, *args, **kwargs):
+        if event.type == carb.input.KeyboardEventType.KEY_PRESS:
+            if event.input == ord('i') or event.input == ord('I'):
+                keys_pressed["i"] = True
+            elif event.input == ord('k') or event.input == ord('K'):
+                keys_pressed["k"] = True
+            elif event.input == ord('j') or event.input == ord('J'):
+                keys_pressed["j"] = True
+            elif event.input == ord('l') or event.input == ord('L'):
+                keys_pressed["l"] = True
+        elif event.type == carb.input.KeyboardEventType.KEY_RELEASE:
+            if event.input == ord('i') or event.input == ord('I'):
+                keys_pressed["i"] = False
+            elif event.input == ord('k') or event.input == ord('K'):
+                keys_pressed["k"] = False
+            elif event.input == ord('j') or event.input == ord('J'):
+                keys_pressed["j"] = False
+            elif event.input == ord('l') or event.input == ord('L'):
+                keys_pressed["l"] = False
+    
+    try:
+        keyboard = carb.input.get_keyboard()
+        if keyboard:
+            input_interface.subscribe_to_keyboard_events(keyboard, keyboard_event_handler)
+            print("[INFO]: Keyboard event handler registered.")
+    except Exception as e:
+        print(f"[WARNING]: Could not register keyboard events: {e}")
     
     joint_targets = robot.data.default_joint_pos.clone()
     
@@ -114,6 +143,7 @@ def main():
     
     for i in range(300):
         robot.set_joint_position_target(joint_targets)
+        robot.set_joint_velocity_target(torch.zeros_like(joint_targets))
         root_state = robot.data.root_state_w.clone()
         root_state[:, 3:7] = torch.tensor([1.0, 0.0, 0.0, 0.0], device=sim.device)
         robot.write_root_state_to_sim(root_state, torch.arange(args_cli.num_envs, device=sim.device))
@@ -121,7 +151,7 @@ def main():
         scene.update(sim.get_physics_dt())
         if i % 50 == 0:
             current_pos = robot.data.joint_pos[0]
-            print(f"[DEBUG]: Step {i}, joint positions: {current_pos[:10] if len(current_pos) > 10 else current_pos}")
+            print(f"[DEBUG]: Step {i}, joint positions: {current_pos[:4]}")
     
     print("[INFO]: Robot stabilized.")
 
@@ -137,21 +167,17 @@ def main():
     while simulation_app.is_running():
         base_velocity.zero_()
 
-        try:
-            keyboard = carb.input.get_keyboard()
-            if keyboard:
-                if input_interface.get_keyboard_value(keyboard, ord('i')) or input_interface.get_keyboard_value(keyboard, ord('I')):
-                    base_velocity[:, 0] = base_speed
-                if input_interface.get_keyboard_value(keyboard, ord('k')) or input_interface.get_keyboard_value(keyboard, ord('K')):
-                    base_velocity[:, 0] = -base_speed
-                if input_interface.get_keyboard_value(keyboard, ord('j')) or input_interface.get_keyboard_value(keyboard, ord('J')):
-                    base_velocity[:, 1] = base_speed
-                if input_interface.get_keyboard_value(keyboard, ord('l')) or input_interface.get_keyboard_value(keyboard, ord('L')):
-                    base_velocity[:, 1] = -base_speed
-        except:
-            pass
+        if keys_pressed["i"]:
+            base_velocity[:, 0] = base_speed
+        if keys_pressed["k"]:
+            base_velocity[:, 0] = -base_speed
+        if keys_pressed["j"]:
+            base_velocity[:, 1] = base_speed
+        if keys_pressed["l"]:
+            base_velocity[:, 1] = -base_speed
 
         robot.set_joint_position_target(joint_targets)
+        robot.set_joint_velocity_target(torch.zeros_like(joint_targets))
         
         root_state = robot.data.root_state_w.clone()
         root_state[:, 3:7] = torch.tensor([1.0, 0.0, 0.0, 0.0], device=sim.device)
