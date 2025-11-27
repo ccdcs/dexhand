@@ -26,6 +26,7 @@ from isaaclab.actuators import ImplicitActuatorCfg
 from isaaclab.assets import AssetBaseCfg
 from isaaclab.assets.articulation import ArticulationCfg
 from isaaclab.scene import InteractiveScene, InteractiveSceneCfg
+from isaaclab.sim.spawners.from_files import GroundPlaneCfg, spawn_ground_plane
 
 CX002_CONFIG = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(
@@ -41,7 +42,7 @@ CX002_CONFIG = ArticulationCfg(
         ),
     ),
     init_state=ArticulationCfg.InitialStateCfg(
-        pos=(0.0, 0.0, 1.0),
+        pos=(0.0, 0.0, 0.0),
     ),
     actuators={
         "all_joints": ImplicitActuatorCfg(
@@ -56,13 +57,6 @@ CX002_CONFIG = ArticulationCfg(
 
 
 class Cx002SceneCfg(InteractiveSceneCfg):
-    ground = AssetBaseCfg(
-        prim_path="/World/defaultGroundPlane", spawn=sim_utils.GroundPlaneCfg()
-    )
-    dome_light = AssetBaseCfg(
-        prim_path="/World/Light",
-        spawn=sim_utils.DomeLightCfg(intensity=3000.0, color=(0.75, 0.75, 0.75)),
-    )
     robot = CX002_CONFIG.replace(prim_path="{ENV_REGEX_NS}/Robot")
 
 
@@ -73,6 +67,11 @@ def main():
 
     scene_cfg = Cx002SceneCfg(num_envs=args_cli.num_envs, env_spacing=2.0)
     scene = InteractiveScene(scene_cfg)
+    
+    spawn_ground_plane(prim_path="/World/ground", cfg=GroundPlaneCfg())
+    light_cfg = sim_utils.DomeLightCfg(intensity=2000.0, color=(0.75, 0.75, 0.75))
+    light_cfg.func("/World/Light", light_cfg)
+    
     sim.reset()
 
     robot = scene["robot"]
@@ -86,12 +85,16 @@ def main():
         if event.type == carb.input.KeyboardEventType.KEY_PRESS:
             if event.input == ord('i') or event.input == ord('I'):
                 keys_pressed["i"] = True
+                print("[DEBUG]: I key pressed")
             elif event.input == ord('k') or event.input == ord('K'):
                 keys_pressed["k"] = True
+                print("[DEBUG]: K key pressed")
             elif event.input == ord('j') or event.input == ord('J'):
                 keys_pressed["j"] = True
+                print("[DEBUG]: J key pressed")
             elif event.input == ord('l') or event.input == ord('L'):
                 keys_pressed["l"] = True
+                print("[DEBUG]: L key pressed")
         elif event.type == carb.input.KeyboardEventType.KEY_RELEASE:
             if event.input == ord('i') or event.input == ord('I'):
                 keys_pressed["i"] = False
@@ -102,13 +105,23 @@ def main():
             elif event.input == ord('l') or event.input == ord('L'):
                 keys_pressed["l"] = False
     
+    keyboard_sub = None
     try:
         keyboard = carb.input.get_keyboard()
         if keyboard:
-            input_interface.subscribe_to_keyboard_events(keyboard, keyboard_event_handler)
+            keyboard_sub = input_interface.subscribe_to_keyboard_events(keyboard, keyboard_event_handler)
             print("[INFO]: Keyboard event handler registered.")
+        else:
+            print("[WARNING]: Could not get keyboard device.")
     except Exception as e:
         print(f"[WARNING]: Could not register keyboard events: {e}")
+        print("[INFO]: Trying alternative keyboard input method...")
+        try:
+            import omni.isaac.core.utils.numpy.rotations as rot_utils
+            from omni.isaac.core import World
+            print("[INFO]: Note: Keyboard input may require clicking on viewport first.")
+        except:
+            pass
     
     joint_targets = robot.data.default_joint_pos.clone()
     
