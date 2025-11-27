@@ -80,49 +80,9 @@ def main():
     
     base_velocity = torch.zeros((args_cli.num_envs, 3), device=sim.device)
     base_speed = 0.5
-    keys_pressed = {"w": False, "s": False, "a": False, "d": False}
-
-    def handle_action_event(event):
-        if event.action == "move_forward":
-            keys_pressed["w"] = True
-        elif event.action == "move_backward":
-            keys_pressed["s"] = True
-        elif event.action == "move_left":
-            keys_pressed["a"] = True
-        elif event.action == "move_right":
-            keys_pressed["d"] = True
-        return True
-
-    def handle_action_release_event(event):
-        if event.action == "move_forward":
-            keys_pressed["w"] = False
-        elif event.action == "move_backward":
-            keys_pressed["s"] = False
-        elif event.action == "move_left":
-            keys_pressed["a"] = False
-        elif event.action == "move_right":
-            keys_pressed["d"] = False
-        return True
-
-    try:
-        action_mapping_set = input_interface.create_action_mapping_set("teleop_actions")
-        keyboard = carb.input.get_keyboard()
-        if keyboard:
-            input_interface.add_action_mapping(action_mapping_set, "move_forward", keyboard, ord('w'))
-            input_interface.add_action_mapping(action_mapping_set, "move_backward", keyboard, ord('s'))
-            input_interface.add_action_mapping(action_mapping_set, "move_left", keyboard, ord('a'))
-            input_interface.add_action_mapping(action_mapping_set, "move_right", keyboard, ord('d'))
-            
-            input_interface.subscribe_to_action_events(action_mapping_set, "move_forward", handle_action_event)
-            input_interface.subscribe_to_action_events(action_mapping_set, "move_backward", handle_action_event)
-            input_interface.subscribe_to_action_events(action_mapping_set, "move_left", handle_action_event)
-            input_interface.subscribe_to_action_events(action_mapping_set, "move_right", handle_action_event)
-    except Exception as e:
-        print(f"[WARNING]: Could not set up keyboard events: {e}")
-        print("[INFO]: Keyboard controls may not work. Continuing anyway...")
 
     print("[INFO]: Setup complete...")
-    print("[INFO]: Keyboard controls:")
+    print("[INFO]: Click on the 3D viewport to give it focus, then use:")
     print("        W: Move forward")
     print("        S: Move backward")
     print("        A: Move left")
@@ -133,14 +93,19 @@ def main():
     while simulation_app.is_running():
         base_velocity.zero_()
 
-        if keys_pressed["w"]:
-            base_velocity[:, 0] = base_speed
-        if keys_pressed["s"]:
-            base_velocity[:, 0] = -base_speed
-        if keys_pressed["a"]:
-            base_velocity[:, 1] = base_speed
-        if keys_pressed["d"]:
-            base_velocity[:, 1] = -base_speed
+        try:
+            keyboard = carb.input.get_keyboard()
+            if keyboard:
+                if input_interface.get_keyboard_value(keyboard, ord('w')) or input_interface.get_keyboard_value(keyboard, ord('W')):
+                    base_velocity[:, 0] = base_speed
+                if input_interface.get_keyboard_value(keyboard, ord('s')) or input_interface.get_keyboard_value(keyboard, ord('S')):
+                    base_velocity[:, 0] = -base_speed
+                if input_interface.get_keyboard_value(keyboard, ord('a')) or input_interface.get_keyboard_value(keyboard, ord('A')):
+                    base_velocity[:, 1] = base_speed
+                if input_interface.get_keyboard_value(keyboard, ord('d')) or input_interface.get_keyboard_value(keyboard, ord('D')):
+                    base_velocity[:, 1] = -base_speed
+        except:
+            pass
 
         root_state = robot.data.root_state_w.clone()
         root_state[:, 7:10] = base_velocity
