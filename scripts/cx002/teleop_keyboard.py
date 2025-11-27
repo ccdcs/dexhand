@@ -75,53 +75,21 @@ def main():
     sim.reset()
 
     robot = scene["robot"]
-    input_interface = carb.input.acquire_input_interface()
+    
+    try:
+        from omni.isaac.core import World
+        world = World()
+        world.reset()
+        world_keyboard = world.input_interface.keyboard
+        print("[INFO]: Using omni.isaac.core World for keyboard input")
+        use_world_keyboard = True
+    except Exception as e:
+        print(f"[WARNING]: Could not use omni.isaac.core World: {e}")
+        world_keyboard = None
+        use_world_keyboard = False
     
     base_velocity = torch.zeros((args_cli.num_envs, 3), device=sim.device)
     base_speed = 0.5
-    keys_pressed = {"i": False, "k": False, "j": False, "l": False}
-    
-    def keyboard_event_handler(event, *args, **kwargs):
-        if event.type == carb.input.KeyboardEventType.KEY_PRESS:
-            if event.input == ord('i') or event.input == ord('I'):
-                keys_pressed["i"] = True
-                print("[DEBUG]: I key pressed")
-            elif event.input == ord('k') or event.input == ord('K'):
-                keys_pressed["k"] = True
-                print("[DEBUG]: K key pressed")
-            elif event.input == ord('j') or event.input == ord('J'):
-                keys_pressed["j"] = True
-                print("[DEBUG]: J key pressed")
-            elif event.input == ord('l') or event.input == ord('L'):
-                keys_pressed["l"] = True
-                print("[DEBUG]: L key pressed")
-        elif event.type == carb.input.KeyboardEventType.KEY_RELEASE:
-            if event.input == ord('i') or event.input == ord('I'):
-                keys_pressed["i"] = False
-            elif event.input == ord('k') or event.input == ord('K'):
-                keys_pressed["k"] = False
-            elif event.input == ord('j') or event.input == ord('J'):
-                keys_pressed["j"] = False
-            elif event.input == ord('l') or event.input == ord('L'):
-                keys_pressed["l"] = False
-    
-    keyboard_sub = None
-    try:
-        keyboard = carb.input.get_keyboard()
-        if keyboard:
-            keyboard_sub = input_interface.subscribe_to_keyboard_events(keyboard, keyboard_event_handler)
-            print("[INFO]: Keyboard event handler registered.")
-        else:
-            print("[WARNING]: Could not get keyboard device.")
-    except Exception as e:
-        print(f"[WARNING]: Could not register keyboard events: {e}")
-        print("[INFO]: Trying alternative keyboard input method...")
-        try:
-            import omni.isaac.core.utils.numpy.rotations as rot_utils
-            from omni.isaac.core import World
-            print("[INFO]: Note: Keyboard input may require clicking on viewport first.")
-        except:
-            pass
     
     joint_targets = robot.data.default_joint_pos.clone()
     
@@ -180,14 +148,22 @@ def main():
     while simulation_app.is_running():
         base_velocity.zero_()
 
-        if keys_pressed["i"]:
-            base_velocity[:, 0] = base_speed
-        if keys_pressed["k"]:
-            base_velocity[:, 0] = -base_speed
-        if keys_pressed["j"]:
-            base_velocity[:, 1] = base_speed
-        if keys_pressed["l"]:
-            base_velocity[:, 1] = -base_speed
+        if use_world_keyboard and world_keyboard:
+            try:
+                if world_keyboard.WAS_PRESSED(carb.input.KeyboardInput.KEY_I):
+                    base_velocity[:, 0] = base_speed
+                    print("[DEBUG]: I key pressed")
+                if world_keyboard.WAS_PRESSED(carb.input.KeyboardInput.KEY_K):
+                    base_velocity[:, 0] = -base_speed
+                    print("[DEBUG]: K key pressed")
+                if world_keyboard.WAS_PRESSED(carb.input.KeyboardInput.KEY_J):
+                    base_velocity[:, 1] = base_speed
+                    print("[DEBUG]: J key pressed")
+                if world_keyboard.WAS_PRESSED(carb.input.KeyboardInput.KEY_L):
+                    base_velocity[:, 1] = -base_speed
+                    print("[DEBUG]: L key pressed")
+            except Exception as e:
+                print(f"[DEBUG]: Keyboard check error: {e}")
 
         robot.set_joint_position_target(joint_targets)
         robot.set_joint_velocity_target(torch.zeros_like(joint_targets))
@@ -199,6 +175,8 @@ def main():
 
         sim.step(render=True)
         scene.update(sim_dt)
+        if use_world_keyboard:
+            world.step(render=False)
 
 
 if __name__ == "__main__":
