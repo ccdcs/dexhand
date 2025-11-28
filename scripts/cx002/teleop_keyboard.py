@@ -21,6 +21,7 @@ app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
 
 import carb
+import omni.appwindow
 import torch
 import isaaclab.sim as sim_utils
 from isaaclab.actuators import ImplicitActuatorCfg
@@ -151,12 +152,18 @@ def main():
                 keys_pressed["l"] = False
     
     try:
-        keyboard = carb.input.get_keyboard()
-        if keyboard:
-            subscription = input_interface.subscribe_to_keyboard_events(keyboard, keyboard_event_handler)
-            print("[INFO]: Keyboard event handler registered successfully.")
+        import omni.appwindow
+        appwindow = omni.appwindow.get_default_app_window()
+        if appwindow:
+            keyboard = appwindow.get_keyboard()
+            if keyboard:
+                subscription = input_interface.subscribe_to_keyboard_events(keyboard, keyboard_event_handler)
+                print("[INFO]: Keyboard event handler registered successfully.")
+                print("[INFO]: Click on the Isaac Lab viewport window to give it focus, then use I/J/K/L keys.")
+            else:
+                print("[WARNING]: Could not get keyboard from app window.")
         else:
-            print("[WARNING]: Could not get keyboard device.")
+            print("[WARNING]: Could not get app window.")
     except Exception as e:
         print(f"[WARNING]: Could not register keyboard events: {e}")
         print("[INFO]: Make sure to click on the Isaac Lab viewport window to give it focus!")
