@@ -136,28 +136,27 @@ def main():
     keys_pressed = {"i": False, "k": False, "j": False, "l": False}
     
     def keyboard_event_handler(event, *args, **kwargs):
-        print(f"[DEBUG]: Keyboard event received - type: {event.type}, input: {event.input}")
         if event.type == carb.input.KeyboardEventType.KEY_PRESS:
-            if event.input == ord('i') or event.input == ord('I'):
+            if event.input == carb.input.KeyboardInput.KEY_I:
                 keys_pressed["i"] = True
-                print("[DEBUG]: I pressed")
-            elif event.input == ord('k') or event.input == ord('K'):
+                print("[DEBUG]: I pressed - moving forward")
+            elif event.input == carb.input.KeyboardInput.KEY_K:
                 keys_pressed["k"] = True
-                print("[DEBUG]: K pressed")
-            elif event.input == ord('j') or event.input == ord('J'):
+                print("[DEBUG]: K pressed - moving backward")
+            elif event.input == carb.input.KeyboardInput.KEY_J:
                 keys_pressed["j"] = True
-                print("[DEBUG]: J pressed")
-            elif event.input == ord('l') or event.input == ord('L'):
+                print("[DEBUG]: J pressed - moving left")
+            elif event.input == carb.input.KeyboardInput.KEY_L:
                 keys_pressed["l"] = True
-                print("[DEBUG]: L pressed")
+                print("[DEBUG]: L pressed - moving right")
         elif event.type == carb.input.KeyboardEventType.KEY_RELEASE:
-            if event.input == ord('i') or event.input == ord('I'):
+            if event.input == carb.input.KeyboardInput.KEY_I:
                 keys_pressed["i"] = False
-            elif event.input == ord('k') or event.input == ord('K'):
+            elif event.input == carb.input.KeyboardInput.KEY_K:
                 keys_pressed["k"] = False
-            elif event.input == ord('j') or event.input == ord('J'):
+            elif event.input == carb.input.KeyboardInput.KEY_J:
                 keys_pressed["j"] = False
-            elif event.input == ord('l') or event.input == ord('L'):
+            elif event.input == carb.input.KeyboardInput.KEY_L:
                 keys_pressed["l"] = False
     
     try:
@@ -188,23 +187,26 @@ def main():
         if keys_pressed["i"]:
             base_velocity[:, 0] = base_speed
             if not keyboard_working:
-                print("[DEBUG]: I key detected!")
+                print("[DEBUG]: I key detected - moving forward!")
                 keyboard_working = True
         if keys_pressed["k"]:
             base_velocity[:, 0] = -base_speed
             if not keyboard_working:
-                print("[DEBUG]: K key detected!")
+                print("[DEBUG]: K key detected - moving backward!")
                 keyboard_working = True
         if keys_pressed["j"]:
             base_velocity[:, 1] = base_speed
             if not keyboard_working:
-                print("[DEBUG]: J key detected!")
+                print("[DEBUG]: J key detected - moving left!")
                 keyboard_working = True
         if keys_pressed["l"]:
             base_velocity[:, 1] = -base_speed
             if not keyboard_working:
-                print("[DEBUG]: L key detected!")
+                print("[DEBUG]: L key detected - moving right!")
                 keyboard_working = True
+        
+        if torch.any(base_velocity != 0):
+            print(f"[DEBUG]: Applying base velocity: {base_velocity[0].cpu().numpy()}")
         
         if frame_count % 300 == 0 and not keyboard_working:
             print(f"[DEBUG]: Frame {frame_count}, keys_pressed: {keys_pressed}")
