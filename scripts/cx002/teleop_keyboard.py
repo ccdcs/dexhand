@@ -136,27 +136,30 @@ def main():
     keys_pressed = {"i": False, "k": False, "j": False, "l": False}
     
     def keyboard_event_handler(event, *args, **kwargs):
+        input_val = event.input
+        input_str = str(input_val)
+        
         if event.type == carb.input.KeyboardEventType.KEY_PRESS:
-            if event.input == carb.input.KeyboardInput.KEY_I:
+            if "I" in input_str or input_val == ord('I') or input_val == ord('i'):
                 keys_pressed["i"] = True
-                print("[DEBUG]: I pressed - moving forward")
-            elif event.input == carb.input.KeyboardInput.KEY_K:
+                print(f"[DEBUG]: I pressed - moving forward (input: {input_val}, str: {input_str})")
+            elif "K" in input_str or input_val == ord('K') or input_val == ord('k'):
                 keys_pressed["k"] = True
-                print("[DEBUG]: K pressed - moving backward")
-            elif event.input == carb.input.KeyboardInput.KEY_J:
+                print(f"[DEBUG]: K pressed - moving backward (input: {input_val}, str: {input_str})")
+            elif "J" in input_str or input_val == ord('J') or input_val == ord('j'):
                 keys_pressed["j"] = True
-                print("[DEBUG]: J pressed - moving left")
-            elif event.input == carb.input.KeyboardInput.KEY_L:
+                print(f"[DEBUG]: J pressed - moving left (input: {input_val}, str: {input_str})")
+            elif "L" in input_str or input_val == ord('L') or input_val == ord('l'):
                 keys_pressed["l"] = True
-                print("[DEBUG]: L pressed - moving right")
+                print(f"[DEBUG]: L pressed - moving right (input: {input_val}, str: {input_str})")
         elif event.type == carb.input.KeyboardEventType.KEY_RELEASE:
-            if event.input == carb.input.KeyboardInput.KEY_I:
+            if "I" in input_str or input_val == ord('I') or input_val == ord('i'):
                 keys_pressed["i"] = False
-            elif event.input == carb.input.KeyboardInput.KEY_K:
+            elif "K" in input_str or input_val == ord('K') or input_val == ord('k'):
                 keys_pressed["k"] = False
-            elif event.input == carb.input.KeyboardInput.KEY_J:
+            elif "J" in input_str or input_val == ord('J') or input_val == ord('j'):
                 keys_pressed["j"] = False
-            elif event.input == carb.input.KeyboardInput.KEY_L:
+            elif "L" in input_str or input_val == ord('L') or input_val == ord('l'):
                 keys_pressed["l"] = False
     
     try:
