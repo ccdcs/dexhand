@@ -5,6 +5,7 @@
 
 """
 Simple keyboard teleoperation for cx002 robot base using I/J/K/L.
+Note: Click on the 3D viewport first to give it focus for keyboard input.
 """
 
 import argparse
@@ -12,6 +13,7 @@ import argparse
 from isaaclab.app import AppLauncher
 
 parser = argparse.ArgumentParser(description="Keyboard teleoperation for cx002 robot base.")
+parser.add_argument("--num_envs", type=int, default=1, help="Number of environments to spawn.")
 AppLauncher.add_app_launcher_args(parser)
 args_cli = parser.parse_args()
 
@@ -20,83 +22,168 @@ simulation_app = app_launcher.app
 
 import carb
 import torch
-from omni.isaac.core import World
-from omni.isaac.core.utils.stage import add_reference_to_stage
-from omni.isaac.core.utils.prims import create_prim
 import isaaclab.sim as sim_utils
+from isaaclab.actuators import ImplicitActuatorCfg
+from isaaclab.assets import AssetBaseCfg
+from isaaclab.assets.articulation import ArticulationCfg
+from isaaclab.scene import InteractiveScene, InteractiveSceneCfg
 from isaaclab.sim.spawners.from_files import GroundPlaneCfg, spawn_ground_plane
+
+CX002_CONFIG = ArticulationCfg(
+    spawn=sim_utils.UsdFileCfg(
+        usd_path="assets/cx002_description_new/cx002_robot/cx002_robot.usd",
+        rigid_props=sim_utils.RigidBodyPropertiesCfg(
+            disable_gravity=False,
+            max_depenetration_velocity=5.0,
+        ),
+        articulation_props=sim_utils.ArticulationRootPropertiesCfg(
+            enabled_self_collisions=True,
+            solver_position_iteration_count=8,
+            solver_velocity_iteration_count=0,
+        ),
+    ),
+    init_state=ArticulationCfg.InitialStateCfg(
+        pos=(0.0, 0.0, 0.0),
+    ),
+    actuators={
+        "all_joints": ImplicitActuatorCfg(
+            joint_names_expr=[".*"],
+            effort_limit_sim=500.0,
+            velocity_limit_sim=100.0,
+            stiffness=5000.0,
+            damping=2000.0,
+        ),
+    },
+)
+
+
+class Cx002SceneCfg(InteractiveSceneCfg):
+    robot = CX002_CONFIG.replace(prim_path="{ENV_REGEX_NS}/Robot")
 
 
 def main():
-    world = World()
-    
-    add_reference_to_stage(
-        usd_path="assets/cx002_description_new/cx002_robot/cx002_robot.usd",
-        prim_path="/World/CX002"
-    )
+    sim_cfg = sim_utils.SimulationCfg(device=args_cli.device)
+    sim = sim_utils.SimulationContext(sim_cfg)
+    sim.set_camera_view([2.5, 2.5, 2.5], [0.0, 0.0, 0.5])
+
+    scene_cfg = Cx002SceneCfg(num_envs=args_cli.num_envs, env_spacing=2.0)
+    scene = InteractiveScene(scene_cfg)
     
     spawn_ground_plane(prim_path="/World/ground", cfg=GroundPlaneCfg())
     light_cfg = sim_utils.DomeLightCfg(intensity=2000.0, color=(0.75, 0.75, 0.75))
     light_cfg.func("/World/Light", light_cfg)
     
-    world.reset()
+    sim.reset()
+
+    robot = scene["robot"]
     
-    robot = world.scene.get_object("CX002")
-    
-    joint_names = robot.get_joint_names()
-    bow_joints = ["bow_pitch_joint_01", "bow_pitch_joint_02", "bow_pitch_joint_03", "bow_yaw_joint"]
-    
-    for i in range(100):
-        for joint_name in bow_joints:
-            if joint_name in joint_names:
-                robot.set_joint_target_position(joint_name, 0.0)
-        world.step(render=False)
-    
-    print("[INFO]: Robot stabilized to upright pose.")
-    
-    base_velocity = [0.0, 0.0, 0.0]
+    base_velocity = torch.zeros((args_cli.num_envs, 3), device=sim.device)
     base_speed = 0.5
     
-    print("[INFO]: Setup complete...")
-    print("[INFO]: Use I/J/K/L keys to move the base:")
+    joint_targets = robot.data.default_joint_pos.clone()
+    
+    bow_pitch_01_idx, _ = robot.find_joints("bow_pitch_joint_01")
+    bow_pitch_02_idx, _ = robot.find_joints("bow_pitch_joint_02")
+    bow_pitch_03_idx, _ = robot.find_joints("bow_pitch_joint_03")
+    bow_yaw_idx, _ = robot.find_joints("bow_yaw_joint")
+    
+    if bow_pitch_01_idx is not None and len(bow_pitch_01_idx) > 0:
+        idx = bow_pitch_01_idx[0].item() if hasattr(bow_pitch_01_idx[0], 'item') else bow_pitch_01_idx[0]
+        joint_targets[:, idx] = 0.0
+    if bow_pitch_02_idx is not None and len(bow_pitch_02_idx) > 0:
+        idx = bow_pitch_02_idx[0].item() if hasattr(bow_pitch_02_idx[0], 'item') else bow_pitch_02_idx[0]
+        joint_targets[:, idx] = 0.0
+    if bow_pitch_03_idx is not None and len(bow_pitch_03_idx) > 0:
+        idx = bow_pitch_03_idx[0].item() if hasattr(bow_pitch_03_idx[0], 'item') else bow_pitch_03_idx[0]
+        joint_targets[:, idx] = 0.0
+    if bow_yaw_idx is not None and len(bow_yaw_idx) > 0:
+        idx = bow_yaw_idx[0].item() if hasattr(bow_yaw_idx[0], 'item') else bow_yaw_idx[0]
+        joint_targets[:, idx] = 0.0
+    
+    print("[INFO]: Setting robot to upright pose...")
+    root_state = robot.data.root_state_w.clone()
+    root_state[:, 3:7] = torch.tensor([1.0, 0.0, 0.0, 0.0], device=sim.device)
+    robot.write_root_state_to_sim(root_state, torch.arange(args_cli.num_envs, device=sim.device))
+    
+    for i in range(300):
+        robot.set_joint_position_target(joint_targets)
+        robot.set_joint_velocity_target(torch.zeros_like(joint_targets))
+        root_state = robot.data.root_state_w.clone()
+        root_state[:, 3:7] = torch.tensor([1.0, 0.0, 0.0, 0.0], device=sim.device)
+        robot.write_root_state_to_sim(root_state, torch.arange(args_cli.num_envs, device=sim.device))
+        sim.step(render=False)
+        scene.update(sim.get_physics_dt())
+    
+    print("[INFO]: Robot stabilized.")
+    print("[INFO]: IMPORTANT: Click on the 3D viewport window to give it focus!")
+    print("[INFO]: Then use I/J/K/L keys to move the base:")
     print("        I: Move forward")
     print("        K: Move backward")
     print("        J: Move left")
     print("        L: Move right")
     print("        Ctrl+C: Exit")
+
+    input_interface = carb.input.acquire_input_interface()
+    keys_pressed = {"i": False, "k": False, "j": False, "l": False}
     
+    def keyboard_event_handler(event, *args, **kwargs):
+        if event.type == carb.input.KeyboardEventType.KEY_PRESS:
+            if event.input == ord('i') or event.input == ord('I'):
+                keys_pressed["i"] = True
+                print("[DEBUG]: I pressed")
+            elif event.input == ord('k') or event.input == ord('K'):
+                keys_pressed["k"] = True
+                print("[DEBUG]: K pressed")
+            elif event.input == ord('j') or event.input == ord('J'):
+                keys_pressed["j"] = True
+                print("[DEBUG]: J pressed")
+            elif event.input == ord('l') or event.input == ord('L'):
+                keys_pressed["l"] = True
+                print("[DEBUG]: L pressed")
+        elif event.type == carb.input.KeyboardEventType.KEY_RELEASE:
+            if event.input == ord('i') or event.input == ord('I'):
+                keys_pressed["i"] = False
+            elif event.input == ord('k') or event.input == ord('K'):
+                keys_pressed["k"] = False
+            elif event.input == ord('j') or event.input == ord('J'):
+                keys_pressed["j"] = False
+            elif event.input == ord('l') or event.input == ord('L'):
+                keys_pressed["l"] = False
+    
+    try:
+        keyboard = carb.input.get_keyboard()
+        if keyboard:
+            subscription = input_interface.subscribe_to_keyboard_events(keyboard, keyboard_event_handler)
+            print("[INFO]: Keyboard event handler registered successfully.")
+        else:
+            print("[WARNING]: Could not get keyboard device.")
+    except Exception as e:
+        print(f"[WARNING]: Could not register keyboard events: {e}")
+        print("[INFO]: Make sure to click on the Isaac Lab viewport window to give it focus!")
+
+    sim_dt = sim.get_physics_dt()
     while simulation_app.is_running():
-        base_velocity = [0.0, 0.0, 0.0]
+        base_velocity.zero_()
+
+        if keys_pressed["i"]:
+            base_velocity[:, 0] = base_speed
+        if keys_pressed["k"]:
+            base_velocity[:, 0] = -base_speed
+        if keys_pressed["j"]:
+            base_velocity[:, 1] = base_speed
+        if keys_pressed["l"]:
+            base_velocity[:, 1] = -base_speed
+
+        robot.set_joint_position_target(joint_targets)
+        robot.set_joint_velocity_target(torch.zeros_like(joint_targets))
         
-        keyboard = world.input_interface.keyboard
-        
-        if keyboard.WAS_PRESSED(carb.input.KeyboardInput.KEY_I):
-            base_velocity[0] = base_speed
-            print("[DEBUG]: I key pressed - moving forward")
-        if keyboard.WAS_PRESSED(carb.input.KeyboardInput.KEY_K):
-            base_velocity[0] = -base_speed
-            print("[DEBUG]: K key pressed - moving backward")
-        if keyboard.WAS_PRESSED(carb.input.KeyboardInput.KEY_J):
-            base_velocity[1] = base_speed
-            print("[DEBUG]: J key pressed - moving left")
-        if keyboard.WAS_PRESSED(carb.input.KeyboardInput.KEY_L):
-            base_velocity[1] = -base_speed
-            print("[DEBUG]: L key pressed - moving right")
-        
-        for joint_name in bow_joints:
-            if joint_name in joint_names:
-                robot.set_joint_target_position(joint_name, 0.0)
-        
-        if any(v != 0.0 for v in base_velocity):
-            current_pos = robot.get_world_pose()
-            new_pos = [
-                current_pos[0][0] + base_velocity[0] * 0.01,
-                current_pos[0][1] + base_velocity[1] * 0.01,
-                current_pos[0][2]
-            ]
-            robot.set_world_pose(position=new_pos, orientation=current_pos[1])
-        
-        world.step(render=True)
+        root_state = robot.data.root_state_w.clone()
+        root_state[:, 3:7] = torch.tensor([1.0, 0.0, 0.0, 0.0], device=sim.device)
+        root_state[:, 7:10] = base_velocity
+        robot.write_root_state_to_sim(root_state, torch.arange(args_cli.num_envs, device=sim.device))
+
+        sim.step(render=True)
+        scene.update(sim_dt)
 
 
 if __name__ == "__main__":
