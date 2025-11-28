@@ -86,8 +86,19 @@ def main():
 
     robot = scene["robot"]
     
-    base_velocity = torch.zeros((args_cli.num_envs, 3), device=sim.device)
-    base_speed = 0.5
+    # Debug: Print all joint names to see if there are wheel joints
+    all_joint_names = robot.joint_names
+    print(f"[DEBUG]: Total joints: {len(all_joint_names)}")
+    print(f"[DEBUG]: Joint names: {all_joint_names}")
+    wheel_joints = [name for name in all_joint_names if 'wheel' in name.lower() or 'drive' in name.lower() or 'motor' in name.lower()]
+    if wheel_joints:
+        print(f"[DEBUG]: Found potential wheel/drive joints: {wheel_joints}")
+    else:
+        print("[DEBUG]: No wheel/drive joints found in joint names")
+        print("[DEBUG]: Robot may use direct base movement (root state control)")
+    
+    base_displacement = torch.zeros((args_cli.num_envs, 3), device=sim.device)
+    base_speed = 0.01
     
     joint_targets = robot.data.default_joint_pos.clone()
     
@@ -125,42 +136,94 @@ def main():
     
     print("[INFO]: Robot stabilized.")
     print("[INFO]: IMPORTANT: Click on the 3D viewport window to give it focus!")
-    print("[INFO]: Then use I/J/K/L keys to move the base:")
-    print("        I: Move forward")
-    print("        K: Move backward")
-    print("        J: Move left")
-    print("        L: Move right")
+    print("[INFO]: Keyboard controls:")
+    print("        Base Movement:")
+    print("          I/K: Move forward/backward")
+    print("          J/L: Move left/right")
+    print("        Body Leaning (Bow Joints):")
+    print("          W/S: Bow pitch 01 forward/backward")
+    print("          A/D: Bow pitch 01 left/right")
+    print("          Q/E: Bow pitch 02 up/down")
+    print("          Z/C: Bow pitch 03 up/down")
+    print("          R/F: Bow yaw left/right")
     print("        Ctrl+C: Exit")
 
     input_interface = carb.input.acquire_input_interface()
-    keys_pressed = {"i": False, "k": False, "j": False, "l": False}
+    keys_pressed = {
+        "i": False, "k": False, "j": False, "l": False,  # Base movement
+        "w": False, "s": False, "a": False, "d": False,  # Bow pitch 01 (forward/back, left/right lean)
+        "q": False, "e": False,  # Bow pitch 02
+        "z": False, "c": False,  # Bow pitch 03
+        "r": False, "f": False,  # Bow yaw (left/right turn)
+    }
     
     def keyboard_event_handler(event, *args, **kwargs):
         input_val = event.input
         input_str = str(input_val)
         
         if event.type == carb.input.KeyboardEventType.KEY_PRESS:
-            if "I" in input_str or input_val == ord('I') or input_val == ord('i'):
+            # Base movement
+            if input_str.endswith(".I") or input_str == "KeyboardInput.I":
                 keys_pressed["i"] = True
-                print(f"[DEBUG]: I pressed - moving forward (input: {input_val}, str: {input_str})")
-            elif "K" in input_str or input_val == ord('K') or input_val == ord('k'):
+            elif input_str.endswith(".K") or input_str == "KeyboardInput.K":
                 keys_pressed["k"] = True
-                print(f"[DEBUG]: K pressed - moving backward (input: {input_val}, str: {input_str})")
-            elif "J" in input_str or input_val == ord('J') or input_val == ord('j'):
+            elif input_str.endswith(".J") or input_str == "KeyboardInput.J":
                 keys_pressed["j"] = True
-                print(f"[DEBUG]: J pressed - moving left (input: {input_val}, str: {input_str})")
-            elif "L" in input_str or input_val == ord('L') or input_val == ord('l'):
+            elif input_str.endswith(".L") or input_str == "KeyboardInput.L":
                 keys_pressed["l"] = True
-                print(f"[DEBUG]: L pressed - moving right (input: {input_val}, str: {input_str})")
+            # Body leaning - Bow pitch 01
+            elif input_str.endswith(".W") or input_str == "KeyboardInput.W":
+                keys_pressed["w"] = True
+            elif input_str.endswith(".S") or input_str == "KeyboardInput.S":
+                keys_pressed["s"] = True
+            elif input_str.endswith(".A") or input_str == "KeyboardInput.A":
+                keys_pressed["a"] = True
+            elif input_str.endswith(".D") or input_str == "KeyboardInput.D":
+                keys_pressed["d"] = True
+            # Bow pitch 02
+            elif input_str.endswith(".Q") or input_str == "KeyboardInput.Q":
+                keys_pressed["q"] = True
+            elif input_str.endswith(".E") or input_str == "KeyboardInput.E":
+                keys_pressed["e"] = True
+            # Bow pitch 03
+            elif input_str.endswith(".Z") or input_str == "KeyboardInput.Z":
+                keys_pressed["z"] = True
+            elif input_str.endswith(".C") or input_str == "KeyboardInput.C":
+                keys_pressed["c"] = True
+            # Bow yaw
+            elif input_str.endswith(".R") or input_str == "KeyboardInput.R":
+                keys_pressed["r"] = True
+            elif input_str.endswith(".F") or input_str == "KeyboardInput.F":
+                keys_pressed["f"] = True
         elif event.type == carb.input.KeyboardEventType.KEY_RELEASE:
-            if "I" in input_str or input_val == ord('I') or input_val == ord('i'):
+            if input_str.endswith(".I") or input_str == "KeyboardInput.I":
                 keys_pressed["i"] = False
-            elif "K" in input_str or input_val == ord('K') or input_val == ord('k'):
+            elif input_str.endswith(".K") or input_str == "KeyboardInput.K":
                 keys_pressed["k"] = False
-            elif "J" in input_str or input_val == ord('J') or input_val == ord('j'):
+            elif input_str.endswith(".J") or input_str == "KeyboardInput.J":
                 keys_pressed["j"] = False
-            elif "L" in input_str or input_val == ord('L') or input_val == ord('l'):
+            elif input_str.endswith(".L") or input_str == "KeyboardInput.L":
                 keys_pressed["l"] = False
+            elif input_str.endswith(".W") or input_str == "KeyboardInput.W":
+                keys_pressed["w"] = False
+            elif input_str.endswith(".S") or input_str == "KeyboardInput.S":
+                keys_pressed["s"] = False
+            elif input_str.endswith(".A") or input_str == "KeyboardInput.A":
+                keys_pressed["a"] = False
+            elif input_str.endswith(".D") or input_str == "KeyboardInput.D":
+                keys_pressed["d"] = False
+            elif input_str.endswith(".Q") or input_str == "KeyboardInput.Q":
+                keys_pressed["q"] = False
+            elif input_str.endswith(".E") or input_str == "KeyboardInput.E":
+                keys_pressed["e"] = False
+            elif input_str.endswith(".Z") or input_str == "KeyboardInput.Z":
+                keys_pressed["z"] = False
+            elif input_str.endswith(".C") or input_str == "KeyboardInput.C":
+                keys_pressed["c"] = False
+            elif input_str.endswith(".R") or input_str == "KeyboardInput.R":
+                keys_pressed["r"] = False
+            elif input_str.endswith(".F") or input_str == "KeyboardInput.F":
+                keys_pressed["f"] = False
     
     try:
         import omni.appwindow
@@ -183,33 +246,79 @@ def main():
     frame_count = 0
     keyboard_working = False
     
+    sim_dt = sim.get_physics_dt()
+    joint_speed = 0.5
+    bow_pitch_01_idx_val = None
+    bow_pitch_02_idx_val = None
+    bow_pitch_03_idx_val = None
+    bow_yaw_idx_val = None
+    
+    if bow_pitch_01_idx is not None and len(bow_pitch_01_idx) > 0:
+        bow_pitch_01_idx_val = bow_pitch_01_idx[0].item() if hasattr(bow_pitch_01_idx[0], 'item') else bow_pitch_01_idx[0]
+    if bow_pitch_02_idx is not None and len(bow_pitch_02_idx) > 0:
+        bow_pitch_02_idx_val = bow_pitch_02_idx[0].item() if hasattr(bow_pitch_02_idx[0], 'item') else bow_pitch_02_idx[0]
+    if bow_pitch_03_idx is not None and len(bow_pitch_03_idx) > 0:
+        bow_pitch_03_idx_val = bow_pitch_03_idx[0].item() if hasattr(bow_pitch_03_idx[0], 'item') else bow_pitch_03_idx[0]
+    if bow_yaw_idx is not None and len(bow_yaw_idx) > 0:
+        bow_yaw_idx_val = bow_yaw_idx[0].item() if hasattr(bow_yaw_idx[0], 'item') else bow_yaw_idx[0]
+    
     while simulation_app.is_running():
-        base_velocity.zero_()
+        base_displacement.zero_()
         frame_count += 1
 
+        # Base movement
         if keys_pressed["i"]:
-            base_velocity[:, 0] = base_speed
+            base_displacement[:, 0] = base_speed
             if not keyboard_working:
                 print("[DEBUG]: I key detected - moving forward!")
                 keyboard_working = True
         if keys_pressed["k"]:
-            base_velocity[:, 0] = -base_speed
+            base_displacement[:, 0] = -base_speed
             if not keyboard_working:
                 print("[DEBUG]: K key detected - moving backward!")
                 keyboard_working = True
         if keys_pressed["j"]:
-            base_velocity[:, 1] = base_speed
+            base_displacement[:, 1] = base_speed
             if not keyboard_working:
                 print("[DEBUG]: J key detected - moving left!")
                 keyboard_working = True
         if keys_pressed["l"]:
-            base_velocity[:, 1] = -base_speed
+            base_displacement[:, 1] = -base_speed
             if not keyboard_working:
                 print("[DEBUG]: L key detected - moving right!")
                 keyboard_working = True
         
-        if torch.any(base_velocity != 0):
-            print(f"[DEBUG]: Applying base velocity: {base_velocity[0].cpu().numpy()}")
+        # Body leaning - Bow pitch 01 (forward/backward, left/right)
+        if bow_pitch_01_idx_val is not None:
+            if keys_pressed["w"]:
+                joint_targets[:, bow_pitch_01_idx_val] += joint_speed * sim_dt
+            if keys_pressed["s"]:
+                joint_targets[:, bow_pitch_01_idx_val] -= joint_speed * sim_dt
+            if keys_pressed["a"]:
+                joint_targets[:, bow_pitch_01_idx_val] += joint_speed * sim_dt * 0.5
+            if keys_pressed["d"]:
+                joint_targets[:, bow_pitch_01_idx_val] -= joint_speed * sim_dt * 0.5
+        
+        # Bow pitch 02
+        if bow_pitch_02_idx_val is not None:
+            if keys_pressed["q"]:
+                joint_targets[:, bow_pitch_02_idx_val] += joint_speed * sim_dt
+            if keys_pressed["e"]:
+                joint_targets[:, bow_pitch_02_idx_val] -= joint_speed * sim_dt
+        
+        # Bow pitch 03
+        if bow_pitch_03_idx_val is not None:
+            if keys_pressed["z"]:
+                joint_targets[:, bow_pitch_03_idx_val] += joint_speed * sim_dt
+            if keys_pressed["c"]:
+                joint_targets[:, bow_pitch_03_idx_val] -= joint_speed * sim_dt
+        
+        # Bow yaw
+        if bow_yaw_idx_val is not None:
+            if keys_pressed["r"]:
+                joint_targets[:, bow_yaw_idx_val] += joint_speed * sim_dt
+            if keys_pressed["f"]:
+                joint_targets[:, bow_yaw_idx_val] -= joint_speed * sim_dt
         
         if frame_count % 300 == 0 and not keyboard_working:
             print(f"[DEBUG]: Frame {frame_count}, keys_pressed: {keys_pressed}")
@@ -218,10 +327,10 @@ def main():
         robot.set_joint_position_target(joint_targets)
         robot.set_joint_velocity_target(torch.zeros_like(joint_targets))
         
-        root_state = robot.data.root_state_w.clone()
-        root_state[:, 3:7] = torch.tensor([1.0, 0.0, 0.0, 0.0], device=sim.device)
-        root_state[:, 7:10] = base_velocity
-        robot.write_root_state_to_sim(root_state, torch.arange(args_cli.num_envs, device=sim.device))
+        if torch.any(base_displacement != 0):
+            root_state = robot.data.root_state_w.clone()
+            root_state[:, 0:3] += base_displacement
+            robot.write_root_state_to_sim(root_state[:, :7], torch.arange(args_cli.num_envs, device=sim.device))
 
         sim.step(render=True)
         scene.update(sim_dt)
