@@ -354,9 +354,10 @@ def main():
         if torch.any(base_displacement != 0):
             root_state[:, 0:3] += base_displacement
             print(f"[MOVING]: Base position updated by {base_displacement[0].cpu().numpy()}, new pos: {root_state[0, 0:3].cpu().numpy()}")
-        # Always maintain default upright orientation (don't force it to overwrite, just set it once)
+        # Always maintain default upright orientation
         root_state[:, 3:7] = default_root_orientation
-        robot.write_root_state_to_sim(root_state[:, :7], torch.arange(args_cli.num_envs, device=sim.device))
+        # Use write_root_pose_to_sim instead of write_root_state_to_sim (only position + orientation, not velocity)
+        robot.write_root_pose_to_sim(root_state[:, :7], torch.arange(args_cli.num_envs, device=sim.device))
 
         sim.step(render=True)
         scene.update(sim_dt)
