@@ -107,29 +107,37 @@ def main():
     bow_pitch_03_idx, _ = robot.find_joints("bow_pitch_joint_03")
     bow_yaw_idx, _ = robot.find_joints("bow_yaw_joint")
     
+    bow_pitch_01_idx_val = None
+    bow_pitch_02_idx_val = None
+    bow_pitch_03_idx_val = None
+    bow_yaw_idx_val = None
+    
     if bow_pitch_01_idx is not None and len(bow_pitch_01_idx) > 0:
-        idx = bow_pitch_01_idx[0].item() if hasattr(bow_pitch_01_idx[0], 'item') else bow_pitch_01_idx[0]
-        joint_targets[:, idx] = 0.0
+        bow_pitch_01_idx_val = bow_pitch_01_idx[0].item() if hasattr(bow_pitch_01_idx[0], 'item') else bow_pitch_01_idx[0]
+        joint_targets[:, bow_pitch_01_idx_val] = 0.0
     if bow_pitch_02_idx is not None and len(bow_pitch_02_idx) > 0:
-        idx = bow_pitch_02_idx[0].item() if hasattr(bow_pitch_02_idx[0], 'item') else bow_pitch_02_idx[0]
-        joint_targets[:, idx] = 0.0
+        bow_pitch_02_idx_val = bow_pitch_02_idx[0].item() if hasattr(bow_pitch_02_idx[0], 'item') else bow_pitch_02_idx[0]
+        joint_targets[:, bow_pitch_02_idx_val] = 0.0
     if bow_pitch_03_idx is not None and len(bow_pitch_03_idx) > 0:
-        idx = bow_pitch_03_idx[0].item() if hasattr(bow_pitch_03_idx[0], 'item') else bow_pitch_03_idx[0]
-        joint_targets[:, idx] = 0.0
+        bow_pitch_03_idx_val = bow_pitch_03_idx[0].item() if hasattr(bow_pitch_03_idx[0], 'item') else bow_pitch_03_idx[0]
+        joint_targets[:, bow_pitch_03_idx_val] = 0.0
     if bow_yaw_idx is not None and len(bow_yaw_idx) > 0:
-        idx = bow_yaw_idx[0].item() if hasattr(bow_yaw_idx[0], 'item') else bow_yaw_idx[0]
-        joint_targets[:, idx] = 0.0
+        bow_yaw_idx_val = bow_yaw_idx[0].item() if hasattr(bow_yaw_idx[0], 'item') else bow_yaw_idx[0]
+        joint_targets[:, bow_yaw_idx_val] = 0.0
+    
+    default_joint_targets = joint_targets.clone()
     
     print("[INFO]: Setting robot to upright pose...")
     root_state = robot.data.root_state_w.clone()
     root_state[:, 3:7] = torch.tensor([1.0, 0.0, 0.0, 0.0], device=sim.device)
+    default_root_orientation = root_state[:, 3:7].clone()
     robot.write_root_state_to_sim(root_state, torch.arange(args_cli.num_envs, device=sim.device))
     
     for i in range(300):
         robot.set_joint_position_target(joint_targets)
         robot.set_joint_velocity_target(torch.zeros_like(joint_targets))
         root_state = robot.data.root_state_w.clone()
-        root_state[:, 3:7] = torch.tensor([1.0, 0.0, 0.0, 0.0], device=sim.device)
+        root_state[:, 3:7] = default_root_orientation
         robot.write_root_state_to_sim(root_state, torch.arange(args_cli.num_envs, device=sim.device))
         sim.step(render=False)
         scene.update(sim.get_physics_dt())
@@ -260,19 +268,8 @@ def main():
     frame_count = 0
     keyboard_working = False
     joint_speed = 50.0
-    bow_pitch_01_idx_val = None
-    bow_pitch_02_idx_val = None
-    bow_pitch_03_idx_val = None
-    bow_yaw_idx_val = None
     
-    if bow_pitch_01_idx is not None and len(bow_pitch_01_idx) > 0:
-        bow_pitch_01_idx_val = bow_pitch_01_idx[0].item() if hasattr(bow_pitch_01_idx[0], 'item') else bow_pitch_01_idx[0]
-    if bow_pitch_02_idx is not None and len(bow_pitch_02_idx) > 0:
-        bow_pitch_02_idx_val = bow_pitch_02_idx[0].item() if hasattr(bow_pitch_02_idx[0], 'item') else bow_pitch_02_idx[0]
-    if bow_pitch_03_idx is not None and len(bow_pitch_03_idx) > 0:
-        bow_pitch_03_idx_val = bow_pitch_03_idx[0].item() if hasattr(bow_pitch_03_idx[0], 'item') else bow_pitch_03_idx[0]
-    if bow_yaw_idx is not None and len(bow_yaw_idx) > 0:
-        bow_yaw_idx_val = bow_yaw_idx[0].item() if hasattr(bow_yaw_idx[0], 'item') else bow_yaw_idx[0]
+    joint_offsets = torch.zeros_like(default_joint_targets)
     
     while simulation_app.is_running():
         base_displacement.zero_()
@@ -300,47 +297,50 @@ def main():
                 print("[DEBUG]: L key detected - moving right!")
                 keyboard_working = True
         
-        # Body leaning - Bow pitch 01 (forward/backward, left/right)
+        # Body leaning - Bow pitch 01 (forward/backward, left/right) - additive to default
         if bow_pitch_01_idx_val is not None:
             if keys_pressed["w"]:
-                joint_targets[:, bow_pitch_01_idx_val] += joint_speed * sim_dt
-                print(f"[BOW PITCH 01]: W pressed, new target: {joint_targets[0, bow_pitch_01_idx_val].item():.3f}")
+                joint_offsets[:, bow_pitch_01_idx_val] += joint_speed * sim_dt
+                print(f"[BOW PITCH 01]: W pressed, offset: {joint_offsets[0, bow_pitch_01_idx_val].item():.3f}")
             if keys_pressed["s"]:
-                joint_targets[:, bow_pitch_01_idx_val] -= joint_speed * sim_dt
-                print(f"[BOW PITCH 01]: S pressed, new target: {joint_targets[0, bow_pitch_01_idx_val].item():.3f}")
+                joint_offsets[:, bow_pitch_01_idx_val] -= joint_speed * sim_dt
+                print(f"[BOW PITCH 01]: S pressed, offset: {joint_offsets[0, bow_pitch_01_idx_val].item():.3f}")
             if keys_pressed["a"]:
-                joint_targets[:, bow_pitch_01_idx_val] += joint_speed * sim_dt * 0.5
-                print(f"[BOW PITCH 01]: A pressed, new target: {joint_targets[0, bow_pitch_01_idx_val].item():.3f}")
+                joint_offsets[:, bow_pitch_01_idx_val] += joint_speed * sim_dt * 0.5
+                print(f"[BOW PITCH 01]: A pressed, offset: {joint_offsets[0, bow_pitch_01_idx_val].item():.3f}")
             if keys_pressed["d"]:
-                joint_targets[:, bow_pitch_01_idx_val] -= joint_speed * sim_dt * 0.5
-                print(f"[BOW PITCH 01]: D pressed, new target: {joint_targets[0, bow_pitch_01_idx_val].item():.3f}")
+                joint_offsets[:, bow_pitch_01_idx_val] -= joint_speed * sim_dt * 0.5
+                print(f"[BOW PITCH 01]: D pressed, offset: {joint_offsets[0, bow_pitch_01_idx_val].item():.3f}")
         
-        # Bow pitch 02
+        # Bow pitch 02 - additive to default
         if bow_pitch_02_idx_val is not None:
             if keys_pressed["q"]:
-                joint_targets[:, bow_pitch_02_idx_val] += joint_speed * sim_dt
-                print(f"[BOW PITCH 02]: Q pressed, new target: {joint_targets[0, bow_pitch_02_idx_val].item():.3f}")
+                joint_offsets[:, bow_pitch_02_idx_val] += joint_speed * sim_dt
+                print(f"[BOW PITCH 02]: Q pressed, offset: {joint_offsets[0, bow_pitch_02_idx_val].item():.3f}")
             if keys_pressed["e"]:
-                joint_targets[:, bow_pitch_02_idx_val] -= joint_speed * sim_dt
-                print(f"[BOW PITCH 02]: E pressed, new target: {joint_targets[0, bow_pitch_02_idx_val].item():.3f}")
+                joint_offsets[:, bow_pitch_02_idx_val] -= joint_speed * sim_dt
+                print(f"[BOW PITCH 02]: E pressed, offset: {joint_offsets[0, bow_pitch_02_idx_val].item():.3f}")
         
-        # Bow pitch 03
+        # Bow pitch 03 - additive to default
         if bow_pitch_03_idx_val is not None:
             if keys_pressed["z"]:
-                joint_targets[:, bow_pitch_03_idx_val] += joint_speed * sim_dt
-                print(f"[BOW PITCH 03]: Z pressed, new target: {joint_targets[0, bow_pitch_03_idx_val].item():.3f}")
+                joint_offsets[:, bow_pitch_03_idx_val] += joint_speed * sim_dt
+                print(f"[BOW PITCH 03]: Z pressed, offset: {joint_offsets[0, bow_pitch_03_idx_val].item():.3f}")
             if keys_pressed["c"]:
-                joint_targets[:, bow_pitch_03_idx_val] -= joint_speed * sim_dt
-                print(f"[BOW PITCH 03]: C pressed, new target: {joint_targets[0, bow_pitch_03_idx_val].item():.3f}")
+                joint_offsets[:, bow_pitch_03_idx_val] -= joint_speed * sim_dt
+                print(f"[BOW PITCH 03]: C pressed, offset: {joint_offsets[0, bow_pitch_03_idx_val].item():.3f}")
         
-        # Bow yaw
+        # Bow yaw - additive to default
         if bow_yaw_idx_val is not None:
             if keys_pressed["r"]:
-                joint_targets[:, bow_yaw_idx_val] += joint_speed * sim_dt
-                print(f"[BOW YAW]: R pressed, new target: {joint_targets[0, bow_yaw_idx_val].item():.3f}")
+                joint_offsets[:, bow_yaw_idx_val] += joint_speed * sim_dt
+                print(f"[BOW YAW]: R pressed, offset: {joint_offsets[0, bow_yaw_idx_val].item():.3f}")
             if keys_pressed["f"]:
-                joint_targets[:, bow_yaw_idx_val] -= joint_speed * sim_dt
-                print(f"[BOW YAW]: F pressed, new target: {joint_targets[0, bow_yaw_idx_val].item():.3f}")
+                joint_offsets[:, bow_yaw_idx_val] -= joint_speed * sim_dt
+                print(f"[BOW YAW]: F pressed, offset: {joint_offsets[0, bow_yaw_idx_val].item():.3f}")
+        
+        # Apply offsets to default targets
+        joint_targets = default_joint_targets + joint_offsets
         
         if frame_count % 300 == 0 and not keyboard_working:
             print(f"[DEBUG]: Frame {frame_count}, keys_pressed: {keys_pressed}")
@@ -349,11 +349,14 @@ def main():
         robot.set_joint_position_target(joint_targets)
         robot.set_joint_velocity_target(torch.zeros_like(joint_targets))
         
+        # Update base position (additive to current position, maintain default upright orientation)
+        root_state = robot.data.root_state_w.clone()
         if torch.any(base_displacement != 0):
-            root_state = robot.data.root_state_w.clone()
             root_state[:, 0:3] += base_displacement
-            robot.write_root_state_to_sim(root_state[:, :7], torch.arange(args_cli.num_envs, device=sim.device))
             print(f"[MOVING]: Base position updated by {base_displacement[0].cpu().numpy()}, new pos: {root_state[0, 0:3].cpu().numpy()}")
+        # Always maintain default upright orientation (don't force it to overwrite, just set it once)
+        root_state[:, 3:7] = default_root_orientation
+        robot.write_root_state_to_sim(root_state[:, :7], torch.arange(args_cli.num_envs, device=sim.device))
 
         sim.step(render=True)
         scene.update(sim_dt)
