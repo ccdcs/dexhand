@@ -98,7 +98,7 @@ def main():
         print("[DEBUG]: Robot may use direct base movement (root state control)")
     
     base_displacement = torch.zeros((args_cli.num_envs, 3), device=sim.device)
-    base_speed = 0.1
+    base_speed = 1.0
     
     joint_targets = robot.data.default_joint_pos.clone()
     
@@ -259,9 +259,7 @@ def main():
     sim_dt = sim.get_physics_dt()
     frame_count = 0
     keyboard_working = False
-    
-    sim_dt = sim.get_physics_dt()
-    joint_speed = 2.0
+    joint_speed = 5.0
     bow_pitch_01_idx_val = None
     bow_pitch_02_idx_val = None
     bow_pitch_03_idx_val = None
@@ -306,33 +304,43 @@ def main():
         if bow_pitch_01_idx_val is not None:
             if keys_pressed["w"]:
                 joint_targets[:, bow_pitch_01_idx_val] += joint_speed * sim_dt
+                print(f"[BOW PITCH 01]: W pressed, new target: {joint_targets[0, bow_pitch_01_idx_val].item():.3f}")
             if keys_pressed["s"]:
                 joint_targets[:, bow_pitch_01_idx_val] -= joint_speed * sim_dt
+                print(f"[BOW PITCH 01]: S pressed, new target: {joint_targets[0, bow_pitch_01_idx_val].item():.3f}")
             if keys_pressed["a"]:
                 joint_targets[:, bow_pitch_01_idx_val] += joint_speed * sim_dt * 0.5
+                print(f"[BOW PITCH 01]: A pressed, new target: {joint_targets[0, bow_pitch_01_idx_val].item():.3f}")
             if keys_pressed["d"]:
                 joint_targets[:, bow_pitch_01_idx_val] -= joint_speed * sim_dt * 0.5
+                print(f"[BOW PITCH 01]: D pressed, new target: {joint_targets[0, bow_pitch_01_idx_val].item():.3f}")
         
         # Bow pitch 02
         if bow_pitch_02_idx_val is not None:
             if keys_pressed["q"]:
                 joint_targets[:, bow_pitch_02_idx_val] += joint_speed * sim_dt
+                print(f"[BOW PITCH 02]: Q pressed, new target: {joint_targets[0, bow_pitch_02_idx_val].item():.3f}")
             if keys_pressed["e"]:
                 joint_targets[:, bow_pitch_02_idx_val] -= joint_speed * sim_dt
+                print(f"[BOW PITCH 02]: E pressed, new target: {joint_targets[0, bow_pitch_02_idx_val].item():.3f}")
         
         # Bow pitch 03
         if bow_pitch_03_idx_val is not None:
             if keys_pressed["z"]:
                 joint_targets[:, bow_pitch_03_idx_val] += joint_speed * sim_dt
+                print(f"[BOW PITCH 03]: Z pressed, new target: {joint_targets[0, bow_pitch_03_idx_val].item():.3f}")
             if keys_pressed["c"]:
                 joint_targets[:, bow_pitch_03_idx_val] -= joint_speed * sim_dt
+                print(f"[BOW PITCH 03]: C pressed, new target: {joint_targets[0, bow_pitch_03_idx_val].item():.3f}")
         
         # Bow yaw
         if bow_yaw_idx_val is not None:
             if keys_pressed["r"]:
                 joint_targets[:, bow_yaw_idx_val] += joint_speed * sim_dt
+                print(f"[BOW YAW]: R pressed, new target: {joint_targets[0, bow_yaw_idx_val].item():.3f}")
             if keys_pressed["f"]:
                 joint_targets[:, bow_yaw_idx_val] -= joint_speed * sim_dt
+                print(f"[BOW YAW]: F pressed, new target: {joint_targets[0, bow_yaw_idx_val].item():.3f}")
         
         if frame_count % 300 == 0 and not keyboard_working:
             print(f"[DEBUG]: Frame {frame_count}, keys_pressed: {keys_pressed}")
