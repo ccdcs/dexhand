@@ -5,7 +5,6 @@
 
 """
 Simple keyboard teleoperation for cx002 robot base using I/J/K/L.
-Note: Click on the 3D viewport first to give it focus for keyboard input.
 """
 
 import argparse
@@ -63,6 +62,15 @@ class Cx002SceneCfg(InteractiveSceneCfg):
 
 
 def main():
+    try:
+        import omni.kit.viewport.utility as viewport_utils
+        viewport = viewport_utils.get_active_viewport()
+        if viewport:
+            viewport.disable_interactions()
+            print("[INFO]: Viewport interactions disabled for keyboard input.")
+    except Exception as e:
+        print(f"[INFO]: Could not disable viewport interactions: {e}")
+    
     sim_cfg = sim_utils.SimulationCfg(device=args_cli.device)
     sim = sim_utils.SimulationContext(sim_cfg)
     sim.set_camera_view([2.5, 2.5, 2.5], [0.0, 0.0, 0.5])
@@ -128,6 +136,7 @@ def main():
     keys_pressed = {"i": False, "k": False, "j": False, "l": False}
     
     def keyboard_event_handler(event, *args, **kwargs):
+        print(f"[DEBUG]: Keyboard event received - type: {event.type}, input: {event.input}")
         if event.type == carb.input.KeyboardEventType.KEY_PRESS:
             if event.input == ord('i') or event.input == ord('I'):
                 keys_pressed["i"] = True
@@ -169,17 +178,37 @@ def main():
         print("[INFO]: Make sure to click on the Isaac Lab viewport window to give it focus!")
 
     sim_dt = sim.get_physics_dt()
+    frame_count = 0
+    keyboard_working = False
+    
     while simulation_app.is_running():
         base_velocity.zero_()
+        frame_count += 1
 
         if keys_pressed["i"]:
             base_velocity[:, 0] = base_speed
+            if not keyboard_working:
+                print("[DEBUG]: I key detected!")
+                keyboard_working = True
         if keys_pressed["k"]:
             base_velocity[:, 0] = -base_speed
+            if not keyboard_working:
+                print("[DEBUG]: K key detected!")
+                keyboard_working = True
         if keys_pressed["j"]:
             base_velocity[:, 1] = base_speed
+            if not keyboard_working:
+                print("[DEBUG]: J key detected!")
+                keyboard_working = True
         if keys_pressed["l"]:
             base_velocity[:, 1] = -base_speed
+            if not keyboard_working:
+                print("[DEBUG]: L key detected!")
+                keyboard_working = True
+        
+        if frame_count % 300 == 0 and not keyboard_working:
+            print(f"[DEBUG]: Frame {frame_count}, keys_pressed: {keys_pressed}")
+            print("[INFO]: If keys aren't working, make sure you clicked the viewport window!")
 
         robot.set_joint_position_target(joint_targets)
         robot.set_joint_velocity_target(torch.zeros_like(joint_targets))
