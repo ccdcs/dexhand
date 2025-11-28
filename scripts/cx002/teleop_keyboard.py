@@ -98,7 +98,7 @@ def main():
         print("[DEBUG]: Robot may use direct base movement (root state control)")
     
     base_velocity = torch.zeros((args_cli.num_envs, 3), device=sim.device)
-    base_speed = 0.5
+    base_speed = 2
     
     joint_targets = robot.data.default_joint_pos.clone()
     
