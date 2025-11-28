@@ -97,8 +97,8 @@ def main():
         print("[DEBUG]: No wheel/drive joints found in joint names")
         print("[DEBUG]: Robot may use direct base movement (root state control)")
     
-    base_displacement = torch.zeros((args_cli.num_envs, 3), device=sim.device)
-    base_speed = 1
+    base_velocity = torch.zeros((args_cli.num_envs, 3), device=sim.device)
+    base_speed = 0.5
     
     joint_targets = robot.data.default_joint_pos.clone()
     
@@ -267,80 +267,67 @@ def main():
     sim_dt = sim.get_physics_dt()
     frame_count = 0
     keyboard_working = False
-    joint_speed = 10
+    joint_speed = 2.0
     
     joint_offsets = torch.zeros_like(default_joint_targets)
     
     while simulation_app.is_running():
-        base_displacement.zero_()
+        base_velocity.zero_()
         frame_count += 1
 
-        # Base movement
+        # Base movement - smooth velocity-based
         if keys_pressed["i"]:
-            base_displacement[:, 0] = base_speed
-            if not keyboard_working:
-                print("[DEBUG]: I key detected - moving forward!")
-                keyboard_working = True
+            base_velocity[:, 0] = base_speed
+            keyboard_working = True
         if keys_pressed["k"]:
-            base_displacement[:, 0] = -base_speed
-            if not keyboard_working:
-                print("[DEBUG]: K key detected - moving backward!")
-                keyboard_working = True
+            base_velocity[:, 0] = -base_speed
+            keyboard_working = True
         if keys_pressed["j"]:
-            base_displacement[:, 1] = base_speed
-            if not keyboard_working:
-                print("[DEBUG]: J key detected - moving left!")
-                keyboard_working = True
+            base_velocity[:, 1] = base_speed
+            keyboard_working = True
         if keys_pressed["l"]:
-            base_displacement[:, 1] = -base_speed
-            if not keyboard_working:
-                print("[DEBUG]: L key detected - moving right!")
-                keyboard_working = True
+            base_velocity[:, 1] = -base_speed
+            keyboard_working = True
         
         # Body leaning - Bow pitch 01 (forward/backward, left/right) - additive to default
         if bow_pitch_01_idx_val is not None:
             if keys_pressed["w"]:
                 joint_offsets[:, bow_pitch_01_idx_val] += joint_speed * sim_dt
-                print(f"[BOW PITCH 01]: W pressed, offset: {joint_offsets[0, bow_pitch_01_idx_val].item():.3f}")
             if keys_pressed["s"]:
                 joint_offsets[:, bow_pitch_01_idx_val] -= joint_speed * sim_dt
-                print(f"[BOW PITCH 01]: S pressed, offset: {joint_offsets[0, bow_pitch_01_idx_val].item():.3f}")
             if keys_pressed["a"]:
                 joint_offsets[:, bow_pitch_01_idx_val] += joint_speed * sim_dt * 0.5
-                print(f"[BOW PITCH 01]: A pressed, offset: {joint_offsets[0, bow_pitch_01_idx_val].item():.3f}")
             if keys_pressed["d"]:
                 joint_offsets[:, bow_pitch_01_idx_val] -= joint_speed * sim_dt * 0.5
-                print(f"[BOW PITCH 01]: D pressed, offset: {joint_offsets[0, bow_pitch_01_idx_val].item():.3f}")
         
         # Bow pitch 02 - additive to default
         if bow_pitch_02_idx_val is not None:
             if keys_pressed["q"]:
                 joint_offsets[:, bow_pitch_02_idx_val] += joint_speed * sim_dt
-                print(f"[BOW PITCH 02]: Q pressed, offset: {joint_offsets[0, bow_pitch_02_idx_val].item():.3f}")
             if keys_pressed["e"]:
                 joint_offsets[:, bow_pitch_02_idx_val] -= joint_speed * sim_dt
-                print(f"[BOW PITCH 02]: E pressed, offset: {joint_offsets[0, bow_pitch_02_idx_val].item():.3f}")
         
         # Bow pitch 03 - additive to default
         if bow_pitch_03_idx_val is not None:
             if keys_pressed["z"]:
                 joint_offsets[:, bow_pitch_03_idx_val] += joint_speed * sim_dt
-                print(f"[BOW PITCH 03]: Z pressed, offset: {joint_offsets[0, bow_pitch_03_idx_val].item():.3f}")
             if keys_pressed["c"]:
                 joint_offsets[:, bow_pitch_03_idx_val] -= joint_speed * sim_dt
-                print(f"[BOW PITCH 03]: C pressed, offset: {joint_offsets[0, bow_pitch_03_idx_val].item():.3f}")
         
         # Bow yaw - additive to default
         if bow_yaw_idx_val is not None:
             if keys_pressed["r"]:
                 joint_offsets[:, bow_yaw_idx_val] += joint_speed * sim_dt
-                print(f"[BOW YAW]: R pressed, offset: {joint_offsets[0, bow_yaw_idx_val].item():.3f}")
             if keys_pressed["f"]:
                 joint_offsets[:, bow_yaw_idx_val] -= joint_speed * sim_dt
-                print(f"[BOW YAW]: F pressed, offset: {joint_offsets[0, bow_yaw_idx_val].item():.3f}")
         
         # Apply offsets to default targets
         joint_targets = default_joint_targets + joint_offsets
+        
+        # Debug joint movement occasionally
+        if frame_count % 60 == 0 and torch.any(joint_offsets != 0):
+            if bow_pitch_01_idx_val is not None:
+                print(f"[JOINT DEBUG]: Bow pitch 01 offset: {joint_offsets[0, bow_pitch_01_idx_val].item():.3f}, target: {joint_targets[0, bow_pitch_01_idx_val].item():.3f}, current: {robot.data.joint_pos[0, bow_pitch_01_idx_val].item():.3f}")
         
         if frame_count % 300 == 0 and not keyboard_working:
             print(f"[DEBUG]: Frame {frame_count}, keys_pressed: {keys_pressed}")
@@ -349,15 +336,18 @@ def main():
         robot.set_joint_position_target(joint_targets)
         robot.set_joint_velocity_target(torch.zeros_like(joint_targets))
         
-        # Update base position (additive to current position, maintain default upright orientation)
-        root_state = robot.data.root_state_w.clone()
-        if torch.any(base_displacement != 0):
-            root_state[:, 0:3] += base_displacement
-            print(f"[MOVING]: Base position updated by {base_displacement[0].cpu().numpy()}, new pos: {root_state[0, 0:3].cpu().numpy()}")
-        # Always maintain default upright orientation
-        root_state[:, 3:7] = default_root_orientation
-        # Use write_root_pose_to_sim instead of write_root_state_to_sim (only position + orientation, not velocity)
-        robot.write_root_pose_to_sim(root_state[:, :7], torch.arange(args_cli.num_envs, device=sim.device))
+        # Update base position using smooth velocity-based movement
+        if torch.any(base_velocity != 0):
+            root_state = robot.data.root_state_w.clone()
+            # Smooth movement: add velocity * dt to current position
+            root_state[:, 0:3] += base_velocity * sim_dt
+            root_state[:, 3:7] = default_root_orientation
+            robot.write_root_pose_to_sim(root_state[:, :7], torch.arange(args_cli.num_envs, device=sim.device))
+        else:
+            # Only update orientation if no movement (maintain default upright)
+            root_state = robot.data.root_state_w.clone()
+            root_state[:, 3:7] = default_root_orientation
+            robot.write_root_pose_to_sim(root_state[:, :7], torch.arange(args_cli.num_envs, device=sim.device))
 
         sim.step(render=True)
         scene.update(sim_dt)
