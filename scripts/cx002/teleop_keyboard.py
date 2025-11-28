@@ -98,7 +98,7 @@ def main():
         print("[DEBUG]: Robot may use direct base movement (root state control)")
     
     base_displacement = torch.zeros((args_cli.num_envs, 3), device=sim.device)
-    base_speed = 0.01
+    base_speed = 0.1
     
     joint_targets = robot.data.default_joint_pos.clone()
     
@@ -165,36 +165,50 @@ def main():
             # Base movement
             if input_str.endswith(".I") or input_str == "KeyboardInput.I":
                 keys_pressed["i"] = True
+                print("[KEY PRESSED]: I - Moving forward")
             elif input_str.endswith(".K") or input_str == "KeyboardInput.K":
                 keys_pressed["k"] = True
+                print("[KEY PRESSED]: K - Moving backward")
             elif input_str.endswith(".J") or input_str == "KeyboardInput.J":
                 keys_pressed["j"] = True
+                print("[KEY PRESSED]: J - Moving left")
             elif input_str.endswith(".L") or input_str == "KeyboardInput.L":
                 keys_pressed["l"] = True
+                print("[KEY PRESSED]: L - Moving right")
             # Body leaning - Bow pitch 01
             elif input_str.endswith(".W") or input_str == "KeyboardInput.W":
                 keys_pressed["w"] = True
+                print("[KEY PRESSED]: W - Bow pitch 01 forward")
             elif input_str.endswith(".S") or input_str == "KeyboardInput.S":
                 keys_pressed["s"] = True
+                print("[KEY PRESSED]: S - Bow pitch 01 backward")
             elif input_str.endswith(".A") or input_str == "KeyboardInput.A":
                 keys_pressed["a"] = True
+                print("[KEY PRESSED]: A - Bow pitch 01 left")
             elif input_str.endswith(".D") or input_str == "KeyboardInput.D":
                 keys_pressed["d"] = True
+                print("[KEY PRESSED]: D - Bow pitch 01 right")
             # Bow pitch 02
             elif input_str.endswith(".Q") or input_str == "KeyboardInput.Q":
                 keys_pressed["q"] = True
+                print("[KEY PRESSED]: Q - Bow pitch 02 up")
             elif input_str.endswith(".E") or input_str == "KeyboardInput.E":
                 keys_pressed["e"] = True
+                print("[KEY PRESSED]: E - Bow pitch 02 down")
             # Bow pitch 03
             elif input_str.endswith(".Z") or input_str == "KeyboardInput.Z":
                 keys_pressed["z"] = True
+                print("[KEY PRESSED]: Z - Bow pitch 03 up")
             elif input_str.endswith(".C") or input_str == "KeyboardInput.C":
                 keys_pressed["c"] = True
+                print("[KEY PRESSED]: C - Bow pitch 03 down")
             # Bow yaw
             elif input_str.endswith(".R") or input_str == "KeyboardInput.R":
                 keys_pressed["r"] = True
+                print("[KEY PRESSED]: R - Bow yaw left")
             elif input_str.endswith(".F") or input_str == "KeyboardInput.F":
                 keys_pressed["f"] = True
+                print("[KEY PRESSED]: F - Bow yaw right")
         elif event.type == carb.input.KeyboardEventType.KEY_RELEASE:
             if input_str.endswith(".I") or input_str == "KeyboardInput.I":
                 keys_pressed["i"] = False
@@ -247,7 +261,7 @@ def main():
     keyboard_working = False
     
     sim_dt = sim.get_physics_dt()
-    joint_speed = 0.5
+    joint_speed = 2.0
     bow_pitch_01_idx_val = None
     bow_pitch_02_idx_val = None
     bow_pitch_03_idx_val = None
@@ -331,6 +345,7 @@ def main():
             root_state = robot.data.root_state_w.clone()
             root_state[:, 0:3] += base_displacement
             robot.write_root_state_to_sim(root_state[:, :7], torch.arange(args_cli.num_envs, device=sim.device))
+            print(f"[MOVING]: Base position updated by {base_displacement[0].cpu().numpy()}, new pos: {root_state[0, 0:3].cpu().numpy()}")
 
         sim.step(render=True)
         scene.update(sim_dt)
