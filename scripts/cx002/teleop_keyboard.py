@@ -98,7 +98,7 @@ def main():
         print("[DEBUG]: Robot may use direct base movement (root state control)")
     
     base_displacement = torch.zeros((args_cli.num_envs, 3), device=sim.device)
-    base_speed = 0.1
+    base_speed = 1
     
     joint_targets = robot.data.default_joint_pos.clone()
     
@@ -267,7 +267,7 @@ def main():
     sim_dt = sim.get_physics_dt()
     frame_count = 0
     keyboard_working = False
-    joint_speed = 1.0
+    joint_speed = 10
     
     joint_offsets = torch.zeros_like(default_joint_targets)
     
