@@ -15,18 +15,11 @@ class ReachingEnv(DirectRLEnv):
         super().__init__(cfg, render_mode, **kwargs)
         self.prev_dist_to_target = torch.zeros(self.num_envs, device=self.device)
         self.prev_ang_dist_to_target = torch.zeros(self.num_envs, device=self.device)
-        self.target_pos = torch.tensor(
-            self.cfg.target_position, device=self.device
-        ).repeat(self.num_envs, 1)
+        self.target_pos = torch.zeros((self.num_envs, 3), device=self.device)
         self.target_quat = torch.tensor(
             self.cfg.target_orientation, device=self.device
         ).repeat(self.num_envs, 1)
 
-        # calculate ball position
-        grasp_offset = torch.tensor(self.cfg.grasp_offset, device=self.device)
-        grasp_offset_batch = grasp_offset.unsqueeze(0).repeat(self.num_envs, 1)
-        rotated_offset = quat_apply(self.target_quat, grasp_offset_batch)
-        self.ball_pos = self.target_pos + rotated_offset
         self.ball_quat = (
             torch.tensor([1.0, 0.0, 0.0, 0.0], device=self.device)
             .unsqueeze(0)
@@ -142,23 +135,19 @@ class ReachingEnv(DirectRLEnv):
     def _get_dones(self) -> tuple[torch.Tensor, torch.Tensor]:
         time_out = self.episode_length_buf >= self.max_episode_length - 1
 
-        # Only terminate on success during training (when num_envs > 1)
-        if self.num_envs == 1:
-            terminated_success = torch.zeros_like(time_out)
-        else:
-            robot_pos = self.robot.data.root_pos_w
-            robot_quat = self.robot.data.root_quat_w
-            target_pos = self.target_pos
-            target_quat = self.target_quat
+        robot_pos = self.robot.data.root_pos_w
+        robot_quat = self.robot.data.root_quat_w
+        target_pos = self.target_pos
+        target_quat = self.target_quat
 
-            # Calculate current distances
-            current_dist_to_target = torch.norm(robot_pos - target_pos, dim=-1)
-            current_ang_dist_to_target = quat_error_magnitude(robot_quat, target_quat)
+        # Calculate current distances
+        current_dist_to_target = torch.norm(robot_pos - target_pos, dim=-1)
+        current_ang_dist_to_target = quat_error_magnitude(robot_quat, target_quat)
 
-            # Check for success
-            terminated_success = (current_dist_to_target < self.cfg.pos_tolerance) & (
-                current_ang_dist_to_target < self.cfg.orn_tolerance
-            )
+        # Check for success
+        terminated_success = (current_dist_to_target < self.cfg.pos_tolerance) & (
+            current_ang_dist_to_target < self.cfg.orn_tolerance
+        )
 
         return terminated_success, time_out
 
@@ -166,19 +155,45 @@ class ReachingEnv(DirectRLEnv):
         if env_ids is None:
             env_ids = self.robot._ALL_INDICES
 
+        num_resets = len(env_ids)
+
         # Reset robot root state to fixed initial pose
         root_state = self.robot.data.default_root_state[env_ids]
         self.robot.write_root_state_to_sim(root_state, env_ids=env_ids)
+
+        robot_root_pos_w = self.robot.data.root_pos_w[env_ids]
+        base_offset = torch.tensor(
+            self.cfg.target_spawn_base_offset, device=self.device
+        )
+        target_base_pos = robot_root_pos_w + base_offset
+
+        # Generate random offsets for the target position
+        min_rand_offset = torch.tensor(
+            self.cfg.target_spawn_pos_min, device=self.device
+        )
+        max_rand_offset = torch.tensor(
+            self.cfg.target_spawn_pos_max, device=self.device
+        )
+        random_offset = min_rand_offset + (
+            max_rand_offset - min_rand_offset
+        ) * torch.rand(num_resets, 3, device=self.device)
+        self.target_pos[env_ids] = target_base_pos + random_offset
 
         # Reset finger joint positions
         joint_pos = self.robot.data.default_joint_pos[env_ids]
         joint_vel = self.robot.data.default_joint_vel[env_ids]
         self.robot.write_joint_state_to_sim(joint_pos, joint_vel, env_ids=env_ids)
 
+        grasp_offset = torch.tensor(self.cfg.grasp_offset, device=self.device)
+        rotated_offset = quat_apply(
+            self.target_quat[env_ids], grasp_offset.expand(num_resets, -1)
+        )
+        ball_pos = self.target_pos[env_ids] + rotated_offset
+
         # Set ball position
         ball_state = torch.cat(
             [
-                self.ball_pos[env_ids],
+                ball_pos,
                 self.ball_quat[env_ids],
                 self.ball_lin_vel[env_ids],
                 self.ball_ang_vel[env_ids],

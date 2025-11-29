@@ -28,7 +28,7 @@ DEXHAND_CFG = ArticulationCfg(
             "R2_pre_joint": 0.0,
             "R3_pre_joint": 0.0,
         },
-        pos=(0.0, 5.0, 1.0),
+        pos=(0.0, 2.5, 1.0),
         rot=(1.0, 0.0, 0.0, 0.0),
     ),
     actuators={},
@@ -65,8 +65,9 @@ class ReachingEnvCfg(DirectRLEnvCfg):
     robot: ArticulationCfg = DEXHAND_CFG.replace(prim_path="/World/envs/env_.*/Robot")
     ball: RigidObjectCfg = BALL_CFG
 
-    # target pose
-    target_position = [0.0, 0.0, 1.0]
+    target_spawn_base_offset = [0.0, -2.5, 0.0]
+    target_spawn_pos_min = [-0.2, -0.2, -0.2]
+    target_spawn_pos_max = [0.2, 0.2, 0.2]
     target_orientation = [1.0, 0.0, 0.0, 0.0]
     grasp_offset = [0.0, 0.0, -0.15]
 
