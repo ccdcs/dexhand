@@ -1,7 +1,7 @@
 import torch
 from collections.abc import Sequence
 import isaaclab.sim as sim_utils
-from isaaclab.assets import Articulation
+from isaaclab.assets import Articulation, RigidObject
 from isaaclab.envs import DirectRLEnv
 from isaaclab.sim.spawners.from_files import GroundPlaneCfg, spawn_ground_plane
 from isaaclab.utils.math import quat_mul, quat_inv, quat_apply, quat_error_magnitude
@@ -22,11 +22,27 @@ class ReachingEnv(DirectRLEnv):
             self.cfg.target_orientation, device=self.device
         ).repeat(self.num_envs, 1)
 
+        # calculate ball position
+        grasp_offset = torch.tensor(self.cfg.grasp_offset, device=self.device)
+        grasp_offset_batch = grasp_offset.unsqueeze(0).repeat(self.num_envs, 1)
+        rotated_offset = quat_apply(self.target_quat, grasp_offset_batch)
+        self.ball_pos = self.target_pos + rotated_offset
+        self.ball_quat = (
+            torch.tensor([1.0, 0.0, 0.0, 0.0], device=self.device)
+            .unsqueeze(0)
+            .repeat(self.num_envs, 1)
+        )
+        # its a kinematic object, so it has no velocity
+        self.ball_lin_vel = torch.zeros((self.num_envs, 3), device=self.device)
+        self.ball_ang_vel = torch.zeros((self.num_envs, 3), device=self.device)
+
     def _setup_scene(self):
         self.robot = Articulation(self.cfg.robot)
+        self.ball = RigidObject(self.cfg.ball)
         spawn_ground_plane(prim_path="/World/ground", cfg=GroundPlaneCfg())
         self.scene.clone_environments(copy_from_source=False)
         self.scene.articulations["robot"] = self.robot
+        self.scene.rigid_objects["ball"] = self.ball
         light_cfg = sim_utils.DomeLightCfg(intensity=2000.0, color=(0.75, 0.75, 0.75))
         light_cfg.func("/World/Light", light_cfg)
 
@@ -158,6 +174,18 @@ class ReachingEnv(DirectRLEnv):
         joint_pos = self.robot.data.default_joint_pos[env_ids]
         joint_vel = self.robot.data.default_joint_vel[env_ids]
         self.robot.write_joint_state_to_sim(joint_pos, joint_vel, env_ids=env_ids)
+
+        # Set ball position
+        ball_state = torch.cat(
+            [
+                self.ball_pos[env_ids],
+                self.ball_quat[env_ids],
+                self.ball_lin_vel[env_ids],
+                self.ball_ang_vel[env_ids],
+            ],
+            dim=-1,
+        )
+        self.ball.write_root_state_to_sim(ball_state, env_ids=env_ids)
 
         # Store the initial distance and angular distance to the target
         robot_pos = self.robot.data.root_pos_w[env_ids]

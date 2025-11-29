@@ -1,4 +1,4 @@
-from isaaclab.assets import ArticulationCfg
+from isaaclab.assets import ArticulationCfg, RigidObjectCfg
 from isaaclab.envs import DirectRLEnvCfg, ViewerCfg
 from isaaclab.scene import InteractiveSceneCfg
 from isaaclab.sim import SimulationCfg
@@ -35,6 +35,19 @@ DEXHAND_CFG = ArticulationCfg(
 )
 
 
+BALL_CFG = RigidObjectCfg(
+    prim_path="/World/envs/env_.*/ball",
+    spawn=sim_utils.SphereCfg(
+        radius=0.01,
+        rigid_props=sim_utils.RigidBodyPropertiesCfg(kinematic_enabled=True),
+        visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(1.0, 0.0, 0.0)),
+    ),
+    init_state=RigidObjectCfg.InitialStateCfg(
+        pos=(0.0, 0.0, 0.0), rot=(1.0, 0.0, 0.0, 0.0)
+    ),
+)
+
+
 @configclass
 class ReachingEnvCfg(DirectRLEnvCfg):
     decimation = 2
@@ -50,10 +63,12 @@ class ReachingEnvCfg(DirectRLEnvCfg):
     )
     viewer: ViewerCfg = ViewerCfg(eye=(2.0, -2.0, 1.5), lookat=(0.0, 0.0, 1.0))
     robot: ArticulationCfg = DEXHAND_CFG.replace(prim_path="/World/envs/env_.*/Robot")
+    ball: RigidObjectCfg = BALL_CFG
 
     # target pose
     target_position = [0.0, 0.0, 1.0]
     target_orientation = [1.0, 0.0, 0.0, 0.0]
+    grasp_offset = [0.0, 0.0, -0.15]
 
     # rewards
     rew_scale_pos_potential = 10.0
