@@ -62,7 +62,7 @@ class ReachingEnvCfg(DirectRLEnvCfg):
     action_penalty = -0.001
 
     # action scales (for delta actions)
-    action_scale_pos = 0.1  # [m]
+    action_scale_pos = 0.01  # [m]
     action_scale_rot = 0.1  # [rad]
 
     # reset states/conditions
