@@ -16,9 +16,7 @@ class ReachingEnv(DirectRLEnv):
         self.prev_dist_to_target = torch.zeros(self.num_envs, device=self.device)
         self.prev_ang_dist_to_target = torch.zeros(self.num_envs, device=self.device)
         self.target_pos = torch.zeros((self.num_envs, 3), device=self.device)
-        self.target_quat = torch.tensor(
-            self.cfg.target_orientation, device=self.device
-        ).repeat(self.num_envs, 1)
+        self.target_quat = torch.zeros((self.num_envs, 4), device=self.device)
 
         self.ball_quat = (
             torch.tensor([1.0, 0.0, 0.0, 0.0], device=self.device)
@@ -53,7 +51,8 @@ class ReachingEnv(DirectRLEnv):
         # Normalize the delta orientation action to ensure it's a unit quaternion
         delta_orn_quat = torch.nn.functional.normalize(delta_orn_action, p=2, dim=1)
 
-        new_pos = current_pos + delta_pos_action
+        world_frame_delta_pos = quat_apply(current_quat, delta_pos_action)
+        new_pos = current_pos + world_frame_delta_pos
 
         # Apply delta rotation
         new_quat = quat_mul(delta_orn_quat, current_quat)
@@ -117,12 +116,9 @@ class ReachingEnv(DirectRLEnv):
             self.prev_dist_to_target,
             current_ang_dist_to_target,
             self.prev_ang_dist_to_target,
-            self.actions,
-            self.reset_buf,
             self.cfg.rew_scale_pos_potential,
             self.cfg.rew_scale_orn_potential,
             self.cfg.rew_success_bonus,
-            self.cfg.action_penalty,
             terminated_success,
         )
 
@@ -179,6 +175,10 @@ class ReachingEnv(DirectRLEnv):
         ) * torch.rand(num_resets, 3, device=self.device)
         self.target_pos[env_ids] = target_base_pos + random_offset
 
+        # Generate random orientations
+        random_q = torch.randn(num_resets, 4, device=self.device)
+        self.target_quat[env_ids] = torch.nn.functional.normalize(random_q, p=2, dim=1)
+
         # Reset finger joint positions
         joint_pos = self.robot.data.default_joint_pos[env_ids]
         joint_vel = self.robot.data.default_joint_vel[env_ids]
@@ -231,18 +231,14 @@ def compute_rewards(
     prev_dist: torch.Tensor,
     current_ang_dist: torch.Tensor,
     prev_ang_dist: torch.Tensor,
-    actions: torch.Tensor,
-    reset_buf: torch.Tensor,
     rew_pos_potential_scale: float,
     rew_orn_potential_scale: float,
     rew_success_bonus: float,
-    action_penalty: float,
     terminated: torch.Tensor,
 ) -> torch.Tensor:
     pos_reward = rew_pos_potential_scale * (prev_dist - current_dist)
     orn_reward = rew_orn_potential_scale * (prev_ang_dist - current_ang_dist)
     success_reward = rew_success_bonus * terminated.float()
-    action_cost = action_penalty * torch.sum(torch.square(actions), dim=1)
-    reward = pos_reward + orn_reward + success_reward + action_cost
+    reward = pos_reward + orn_reward + success_reward
 
     return reward

@@ -68,14 +68,12 @@ class ReachingEnvCfg(DirectRLEnvCfg):
     target_spawn_base_offset = [0.0, -2.5, 0.0]
     target_spawn_pos_min = [-0.2, -0.2, -0.2]
     target_spawn_pos_max = [0.2, 0.2, 0.2]
-    target_orientation = [1.0, 0.0, 0.0, 0.0]
     grasp_offset = [0.0, 0.0, -0.15]
 
     # rewards
     rew_scale_pos_potential = 10.0
-    rew_scale_orn_potential = 10.0
+    rew_scale_orn_potential = 30.0
     rew_success_bonus = 100.0
-    action_penalty = -0.001
 
     # action scales (for delta actions)
     action_scale_pos = 0.01  # [m]
