@@ -71,7 +71,7 @@ def main():
     except Exception as e:
         print(f"[INFO]: Could not disable viewport interactions: {e}")
     
-    sim_cfg = sim_utils.SimulationCfg(device=args_cli.device)
+    sim_cfg = sim_utils.SimulationCfg(device=args_cli.device, dt=1.0/60.0)
     sim = sim_utils.SimulationContext(sim_cfg)
     sim.set_camera_view([2.5, 2.5, 2.5], [0.0, 0.0, 0.5])
 
@@ -86,19 +86,29 @@ def main():
 
     robot = scene["robot"]
     
-    # Debug: Print all joint names to see if there are wheel joints
     all_joint_names = robot.joint_names
     print(f"[DEBUG]: Total joints: {len(all_joint_names)}")
     print(f"[DEBUG]: Joint names: {all_joint_names}")
-    wheel_joints = [name for name in all_joint_names if 'wheel' in name.lower() or 'drive' in name.lower() or 'motor' in name.lower()]
-    if wheel_joints:
-        print(f"[DEBUG]: Found potential wheel/drive joints: {wheel_joints}")
-    else:
-        print("[DEBUG]: No wheel/drive joints found in joint names")
-        print("[DEBUG]: Robot may use direct base movement (root state control)")
+    
+    print(f"[DEBUG]: Total actuators: {len(robot.actuators)}")
+    for act_name, actuator in robot.actuators.items():
+        print(f"[DEBUG]: Actuator '{act_name}' controls {len(actuator.joint_names)} joints")
+        if "bow" in act_name.lower() or any("bow" in jn for jn in actuator.joint_names):
+            print(f"[DEBUG]:   Bow joints in '{act_name}': {[jn for jn in actuator.joint_names if 'bow' in jn.lower()]}")
+    
+    bow_joint_names = ["bow_pitch_joint_01", "bow_pitch_joint_02", "bow_pitch_joint_03", "bow_yaw_joint"]
+    for bow_joint in bow_joint_names:
+        has_actuator = False
+        for act_name, actuator in robot.actuators.items():
+            if bow_joint in actuator.joint_names:
+                has_actuator = True
+                print(f"[DEBUG]: {bow_joint} has actuator '{act_name}'")
+                break
+        if not has_actuator:
+            print(f"[WARNING]: {bow_joint} has NO actuator!")
     
     base_velocity = torch.zeros((args_cli.num_envs, 3), device=sim.device)
-    base_speed = 2
+    base_speed = 10
     
     joint_targets = robot.data.default_joint_pos.clone()
     
@@ -116,20 +126,29 @@ def main():
         bow_pitch_01_idx_val = bow_pitch_01_idx[0].item() if hasattr(bow_pitch_01_idx[0], 'item') else bow_pitch_01_idx[0]
         joint_targets[:, bow_pitch_01_idx_val] = 0.0
         print(f"[DEBUG]: Found bow_pitch_01_joint at index {bow_pitch_01_idx_val}, default pos: {robot.data.default_joint_pos[0, bow_pitch_01_idx_val].item():.3f}")
+    else:
+        print(f"[WARNING]: bow_pitch_01_joint NOT FOUND! bow_pitch_01_idx = {bow_pitch_01_idx}")
     if bow_pitch_02_idx is not None and len(bow_pitch_02_idx) > 0:
         bow_pitch_02_idx_val = bow_pitch_02_idx[0].item() if hasattr(bow_pitch_02_idx[0], 'item') else bow_pitch_02_idx[0]
         joint_targets[:, bow_pitch_02_idx_val] = 0.0
         print(f"[DEBUG]: Found bow_pitch_02_joint at index {bow_pitch_02_idx_val}, default pos: {robot.data.default_joint_pos[0, bow_pitch_02_idx_val].item():.3f}")
+    else:
+        print(f"[WARNING]: bow_pitch_02_joint NOT FOUND! bow_pitch_02_idx = {bow_pitch_02_idx}")
     if bow_pitch_03_idx is not None and len(bow_pitch_03_idx) > 0:
         bow_pitch_03_idx_val = bow_pitch_03_idx[0].item() if hasattr(bow_pitch_03_idx[0], 'item') else bow_pitch_03_idx[0]
         joint_targets[:, bow_pitch_03_idx_val] = 0.0
         print(f"[DEBUG]: Found bow_pitch_03_joint at index {bow_pitch_03_idx_val}, default pos: {robot.data.default_joint_pos[0, bow_pitch_03_idx_val].item():.3f}")
+    else:
+        print(f"[WARNING]: bow_pitch_03_joint NOT FOUND! bow_pitch_03_idx = {bow_pitch_03_idx}")
     if bow_yaw_idx is not None and len(bow_yaw_idx) > 0:
         bow_yaw_idx_val = bow_yaw_idx[0].item() if hasattr(bow_yaw_idx[0], 'item') else bow_yaw_idx[0]
         joint_targets[:, bow_yaw_idx_val] = 0.0
         print(f"[DEBUG]: Found bow_yaw_joint at index {bow_yaw_idx_val}, default pos: {robot.data.default_joint_pos[0, bow_yaw_idx_val].item():.3f}")
+    else:
+        print(f"[WARNING]: bow_yaw_joint NOT FOUND! bow_yaw_idx = {bow_yaw_idx}")
     
     default_joint_targets = joint_targets.clone()
+    print(f"[DEBUG]: default_joint_targets shape: {default_joint_targets.shape}, first few values: {default_joint_targets[0, :5]}")
     
     print("[INFO]: Setting robot to upright pose...")
     root_state = robot.data.root_state_w.clone()
@@ -147,7 +166,7 @@ def main():
         scene.update(sim.get_physics_dt())
     
     print("[INFO]: Robot stabilized.")
-    print("[INFO]: IMPORTANT: Click on the 3D viewport window to give it focus!")
+    print("[INFO]: Click on the 3D viewport window to give it focus")
     print("[INFO]: Keyboard controls:")
     print("        Base Movement:")
     print("          I/K: Move forward/backward")
@@ -297,12 +316,19 @@ def main():
         if bow_pitch_01_idx_val is not None:
             if keys_pressed["w"]:
                 joint_offsets[:, bow_pitch_01_idx_val] += joint_speed * sim_dt
+                if frame_count % 10 == 0:  # Print every 10 frames to avoid spam
+                    print(f"[OFFSET DEBUG]: W pressed - bow_pitch_01_idx_val={bow_pitch_01_idx_val}, adding {joint_speed * sim_dt:.6f}, new offset: {joint_offsets[0, bow_pitch_01_idx_val].item():.6f}")
             if keys_pressed["s"]:
                 joint_offsets[:, bow_pitch_01_idx_val] -= joint_speed * sim_dt
+                if frame_count % 10 == 0:
+                    print(f"[OFFSET DEBUG]: S pressed - bow_pitch_01_idx_val={bow_pitch_01_idx_val}, subtracting {joint_speed * sim_dt:.6f}, new offset: {joint_offsets[0, bow_pitch_01_idx_val].item():.6f}")
             if keys_pressed["a"]:
                 joint_offsets[:, bow_pitch_01_idx_val] += joint_speed * sim_dt * 0.5
             if keys_pressed["d"]:
                 joint_offsets[:, bow_pitch_01_idx_val] -= joint_speed * sim_dt * 0.5
+        else:
+            if (keys_pressed["w"] or keys_pressed["s"] or keys_pressed["a"] or keys_pressed["d"]) and frame_count % 60 == 0:
+                print(f"[WARNING]: Keys W/S/A/D pressed but bow_pitch_01_idx_val is None!")
         
         # Bow pitch 02 - additive to default
         if bow_pitch_02_idx_val is not None:
@@ -328,32 +354,32 @@ def main():
         # Apply offsets to default targets
         joint_targets = default_joint_targets + joint_offsets
         
-        # Debug joint movement when keys are pressed
-        if torch.any(joint_offsets != 0):
-            if bow_pitch_01_idx_val is not None and (keys_pressed["w"] or keys_pressed["s"] or keys_pressed["a"] or keys_pressed["d"]):
+        # Debug joint movement when keys are pressed - print every 10 frames to avoid spam
+        if bow_pitch_01_idx_val is not None and (keys_pressed["w"] or keys_pressed["s"] or keys_pressed["a"] or keys_pressed["d"]):
+            if frame_count % 10 == 0:  # Print every 10 frames
                 current_pos = robot.data.joint_pos[0, bow_pitch_01_idx_val].item()
                 target_pos = joint_targets[0, bow_pitch_01_idx_val].item()
                 offset = joint_offsets[0, bow_pitch_01_idx_val].item()
                 error = target_pos - current_pos
-                print(f"[JOINT DEBUG]: Bow pitch 01 - offset: {offset:.3f}, target: {target_pos:.3f}, current: {current_pos:.3f}, error: {error:.3f}")
-            if bow_pitch_02_idx_val is not None and (keys_pressed["q"] or keys_pressed["e"]):
-                current_pos = robot.data.joint_pos[0, bow_pitch_02_idx_val].item()
-                target_pos = joint_targets[0, bow_pitch_02_idx_val].item()
-                offset = joint_offsets[0, bow_pitch_02_idx_val].item()
-                error = target_pos - current_pos
-                print(f"[JOINT DEBUG]: Bow pitch 02 - offset: {offset:.3f}, target: {target_pos:.3f}, current: {current_pos:.3f}, error: {error:.3f}")
-            if bow_pitch_03_idx_val is not None and (keys_pressed["z"] or keys_pressed["c"]):
-                current_pos = robot.data.joint_pos[0, bow_pitch_03_idx_val].item()
-                target_pos = joint_targets[0, bow_pitch_03_idx_val].item()
-                offset = joint_offsets[0, bow_pitch_03_idx_val].item()
-                error = target_pos - current_pos
-                print(f"[JOINT DEBUG]: Bow pitch 03 - offset: {offset:.3f}, target: {target_pos:.3f}, current: {current_pos:.3f}, error: {error:.3f}")
-            if bow_yaw_idx_val is not None and (keys_pressed["r"] or keys_pressed["f"]):
-                current_pos = robot.data.joint_pos[0, bow_yaw_idx_val].item()
-                target_pos = joint_targets[0, bow_yaw_idx_val].item()
-                offset = joint_offsets[0, bow_yaw_idx_val].item()
-                error = target_pos - current_pos
-                print(f"[JOINT DEBUG]: Bow yaw - offset: {offset:.3f}, target: {target_pos:.3f}, current: {current_pos:.3f}, error: {error:.3f}")
+                print(f"[JOINT DEBUG]: Bow pitch 01 - offset: {offset:.6f}, target: {target_pos:.6f}, current: {current_pos:.6f}, error: {error:.6f}, frame: {frame_count}")
+        if bow_pitch_02_idx_val is not None and (keys_pressed["q"] or keys_pressed["e"]):
+            current_pos = robot.data.joint_pos[0, bow_pitch_02_idx_val].item()
+            target_pos = joint_targets[0, bow_pitch_02_idx_val].item()
+            offset = joint_offsets[0, bow_pitch_02_idx_val].item()
+            error = target_pos - current_pos
+            print(f"[JOINT DEBUG]: Bow pitch 02 - offset: {offset:.3f}, target: {target_pos:.3f}, current: {current_pos:.3f}, error: {error:.3f}")
+        if bow_pitch_03_idx_val is not None and (keys_pressed["z"] or keys_pressed["c"]):
+            current_pos = robot.data.joint_pos[0, bow_pitch_03_idx_val].item()
+            target_pos = joint_targets[0, bow_pitch_03_idx_val].item()
+            offset = joint_offsets[0, bow_pitch_03_idx_val].item()
+            error = target_pos - current_pos
+            print(f"[JOINT DEBUG]: Bow pitch 03 - offset: {offset:.3f}, target: {target_pos:.3f}, current: {current_pos:.3f}, error: {error:.3f}")
+        if bow_yaw_idx_val is not None and (keys_pressed["r"] or keys_pressed["f"]):
+            current_pos = robot.data.joint_pos[0, bow_yaw_idx_val].item()
+            target_pos = joint_targets[0, bow_yaw_idx_val].item()
+            offset = joint_offsets[0, bow_yaw_idx_val].item()
+            error = target_pos - current_pos
+            print(f"[JOINT DEBUG]: Bow yaw - offset: {offset:.3f}, target: {target_pos:.3f}, current: {current_pos:.3f}, error: {error:.3f}")
         
         if frame_count % 300 == 0 and not keyboard_working:
             print(f"[DEBUG]: Frame {frame_count}, keys_pressed: {keys_pressed}")
