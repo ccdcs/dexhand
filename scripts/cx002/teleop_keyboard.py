@@ -294,9 +294,18 @@ def main():
     
     joint_offsets = torch.zeros_like(default_joint_targets)
     
+    # Track previous key states to detect new presses
+    prev_keys_pressed = {k: False for k in keys_pressed.keys()}
+    
     while simulation_app.is_running():
         base_velocity.zero_()
         frame_count += 1
+        
+        # Debug: Print keys_pressed state periodically when any key is active
+        any_key_active = any(keys_pressed.values())
+        if any_key_active and frame_count % 30 == 0:  # Every 30 frames (~0.5 seconds at 60fps)
+            active_keys = [k for k, v in keys_pressed.items() if v]
+            print(f"[KEYS DEBUG]: Frame {frame_count}, active keys: {active_keys}")
 
         # Base movement - smooth velocity-based
         if keys_pressed["i"]:
@@ -315,20 +324,32 @@ def main():
         # Body leaning - Bow pitch 01 (forward/backward, left/right) - additive to default
         if bow_pitch_01_idx_val is not None:
             if keys_pressed["w"]:
+                old_offset = joint_offsets[0, bow_pitch_01_idx_val].item()
                 joint_offsets[:, bow_pitch_01_idx_val] += joint_speed * sim_dt
-                if frame_count % 10 == 0:  # Print every 10 frames to avoid spam
-                    print(f"[OFFSET DEBUG]: W pressed - bow_pitch_01_idx_val={bow_pitch_01_idx_val}, adding {joint_speed * sim_dt:.6f}, new offset: {joint_offsets[0, bow_pitch_01_idx_val].item():.6f}")
+                new_offset = joint_offsets[0, bow_pitch_01_idx_val].item()
+                # Print immediately on first press, then every 10 frames
+                if not prev_keys_pressed["w"] or frame_count % 10 == 0:
+                    print(f"[OFFSET DEBUG]: W pressed - idx={bow_pitch_01_idx_val}, old={old_offset:.6f}, adding={joint_speed * sim_dt:.6f}, new={new_offset:.6f}, frame={frame_count}")
             if keys_pressed["s"]:
+                old_offset = joint_offsets[0, bow_pitch_01_idx_val].item()
                 joint_offsets[:, bow_pitch_01_idx_val] -= joint_speed * sim_dt
-                if frame_count % 10 == 0:
-                    print(f"[OFFSET DEBUG]: S pressed - bow_pitch_01_idx_val={bow_pitch_01_idx_val}, subtracting {joint_speed * sim_dt:.6f}, new offset: {joint_offsets[0, bow_pitch_01_idx_val].item():.6f}")
+                new_offset = joint_offsets[0, bow_pitch_01_idx_val].item()
+                if not prev_keys_pressed["s"] or frame_count % 10 == 0:
+                    print(f"[OFFSET DEBUG]: S pressed - idx={bow_pitch_01_idx_val}, old={old_offset:.6f}, subtracting={joint_speed * sim_dt:.6f}, new={new_offset:.6f}, frame={frame_count}")
             if keys_pressed["a"]:
                 joint_offsets[:, bow_pitch_01_idx_val] += joint_speed * sim_dt * 0.5
+                if not prev_keys_pressed["a"]:
+                    print(f"[OFFSET DEBUG]: A pressed - idx={bow_pitch_01_idx_val}, offset now={joint_offsets[0, bow_pitch_01_idx_val].item():.6f}")
             if keys_pressed["d"]:
                 joint_offsets[:, bow_pitch_01_idx_val] -= joint_speed * sim_dt * 0.5
+                if not prev_keys_pressed["d"]:
+                    print(f"[OFFSET DEBUG]: D pressed - idx={bow_pitch_01_idx_val}, offset now={joint_offsets[0, bow_pitch_01_idx_val].item():.6f}")
         else:
             if (keys_pressed["w"] or keys_pressed["s"] or keys_pressed["a"] or keys_pressed["d"]) and frame_count % 60 == 0:
                 print(f"[WARNING]: Keys W/S/A/D pressed but bow_pitch_01_idx_val is None!")
+        
+        # Update previous key states
+        prev_keys_pressed = keys_pressed.copy()
         
         # Bow pitch 02 - additive to default
         if bow_pitch_02_idx_val is not None:
@@ -354,6 +375,13 @@ def main():
         # Apply offsets to default targets
         joint_targets = default_joint_targets + joint_offsets
         
+        # Debug: Check if offsets are non-zero
+        if torch.any(joint_offsets != 0) and frame_count % 30 == 0:
+            non_zero_indices = torch.nonzero(joint_offsets[0] != 0).squeeze()
+            if len(non_zero_indices.shape) == 0:
+                non_zero_indices = non_zero_indices.unsqueeze(0)
+            print(f"[OFFSETS DEBUG]: Frame {frame_count}, non-zero offsets at indices: {non_zero_indices.tolist()}, values: {joint_offsets[0, non_zero_indices].tolist()}")
+        
         # Debug joint movement when keys are pressed - print every 10 frames to avoid spam
         if bow_pitch_01_idx_val is not None and (keys_pressed["w"] or keys_pressed["s"] or keys_pressed["a"] or keys_pressed["d"]):
             if frame_count % 10 == 0:  # Print every 10 frames
@@ -362,6 +390,8 @@ def main():
                 offset = joint_offsets[0, bow_pitch_01_idx_val].item()
                 error = target_pos - current_pos
                 print(f"[JOINT DEBUG]: Bow pitch 01 - offset: {offset:.6f}, target: {target_pos:.6f}, current: {current_pos:.6f}, error: {error:.6f}, frame: {frame_count}")
+        elif (keys_pressed["w"] or keys_pressed["s"] or keys_pressed["a"] or keys_pressed["d"]) and frame_count % 30 == 0:
+            print(f"[WARNING]: Keys W/S/A/D pressed but bow_pitch_01_idx_val check failed! idx_val={bow_pitch_01_idx_val}")
         if bow_pitch_02_idx_val is not None and (keys_pressed["q"] or keys_pressed["e"]):
             current_pos = robot.data.joint_pos[0, bow_pitch_02_idx_val].item()
             target_pos = joint_targets[0, bow_pitch_02_idx_val].item()
