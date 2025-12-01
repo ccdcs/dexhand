@@ -83,6 +83,7 @@ def main():
     light_cfg.func("/World/Light", light_cfg)
     
     sim.reset()
+    scene.reset()
 
     robot = scene["robot"]
     
