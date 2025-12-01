@@ -26,10 +26,21 @@ CX002_CONFIG = ArticulationCfg(
         ),
     ),
     init_state=ArticulationCfg.InitialStateCfg(
-        pos=(0.0, 0.0, 1.0),  # Spawn at height 1.0m
+        pos=(0.0, 0.0, 1.0),
     ),
-    # Basic actuators for main arm joints (can be expanded later)
     actuators={
+        "bow_act": ImplicitActuatorCfg(
+            joint_names_expr=[
+                "bow_pitch_joint_01",
+                "bow_pitch_joint_02",
+                "bow_pitch_joint_03",
+                "bow_yaw_joint",
+            ],
+            effort_limit_sim=500.0,
+            velocity_limit_sim=100.0,
+            stiffness=5000.0,
+            damping=2000.0,
+        ),
         "left_arm_act": ImplicitActuatorCfg(
             joint_names_expr=[
                 "left_shoulder_pitch_joint",
@@ -66,28 +77,21 @@ CX002_CONFIG = ArticulationCfg(
 
 @configclass
 class Cx002TeleopEnvCfg(DirectRLEnvCfg):
-    # env
     decimation = 2
     episode_length_s = 5.0
-    # - spaces definition (will be updated when we know which joints to control)
-    action_space = 14  # 7 joints per arm (left + right)
-    observation_space = 14
-    state_space = 14
+    action_space = 18
+    observation_space = 18
+    state_space = 18
 
-    # simulation
     sim: SimulationCfg = SimulationCfg(dt=1 / 120, render_interval=decimation)
 
-    # robot(s)
     robot_cfg: ArticulationCfg = CX002_CONFIG.replace(
         prim_path="/World/envs/env_.*/Robot"
     )
-    # scene
     scene: InteractiveSceneCfg = InteractiveSceneCfg(
         num_envs=1, env_spacing=4.0, replicate_physics=True
     )
 
-    # custom parameters/scales
-    # - reward scales
     rew_scale_alive = 1.0
     rew_scale_terminated = -2.0
 
