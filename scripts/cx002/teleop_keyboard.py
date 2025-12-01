@@ -431,6 +431,9 @@ def main():
             root_state[:, 3:7] = default_root_orientation
             robot.write_root_pose_to_sim(root_state[:, :7], torch.arange(args_cli.num_envs, device=sim.device))
 
+        # Push all buffered commands/poses to the simulator before stepping
+        scene.write_data_to_sim()
+
         sim.step(render=True)
         scene.update(sim_dt)
 
