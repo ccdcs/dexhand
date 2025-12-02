@@ -70,40 +70,7 @@ class Cx002SceneCfg(InteractiveSceneCfg):
             collision_props=sim_utils.CollisionPropertiesCfg(),
             visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.8, 0.2, 0.2)),
         ),
-        init_state=AssetBaseCfg.InitialStateCfg(pos=(1.0, 0.5, 0.5)),
-    )
-    
-    box_2 = AssetBaseCfg(
-        prim_path="/World/box_2",
-        spawn=sim_utils.CuboidCfg(
-            size=(0.2, 0.2, 0.2),
-            rigid_props=sim_utils.RigidBodyPropertiesCfg(),
-            collision_props=sim_utils.CollisionPropertiesCfg(),
-            visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.2, 0.8, 0.2)),
-        ),
-        init_state=AssetBaseCfg.InitialStateCfg(pos=(-1.0, 0.5, 0.5)),
-    )
-    
-    sphere_1 = AssetBaseCfg(
-        prim_path="/World/sphere_1",
-        spawn=sim_utils.SphereCfg(
-            radius=0.15,
-            rigid_props=sim_utils.RigidBodyPropertiesCfg(),
-            collision_props=sim_utils.CollisionPropertiesCfg(),
-            visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.2, 0.2, 0.8)),
-        ),
-        init_state=AssetBaseCfg.InitialStateCfg(pos=(0.0, 1.0, 0.5)),
-    )
-    
-    sphere_2 = AssetBaseCfg(
-        prim_path="/World/sphere_2",
-        spawn=sim_utils.SphereCfg(
-            radius=0.15,
-            rigid_props=sim_utils.RigidBodyPropertiesCfg(),
-            collision_props=sim_utils.CollisionPropertiesCfg(),
-            visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.8, 0.8, 0.2)),
-        ),
-        init_state=AssetBaseCfg.InitialStateCfg(pos=(0.5, -1.0, 0.5)),
+        init_state=AssetBaseCfg.InitialStateCfg(pos=(1.0, 0.0, 0.5)),
     )
 
 
