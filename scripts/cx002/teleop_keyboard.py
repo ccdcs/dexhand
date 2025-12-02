@@ -90,10 +90,16 @@ def main():
     bow_pitch_03_idx, _ = robot.find_joints("bow_pitch_joint_03")
     bow_yaw_idx, _ = robot.find_joints("bow_yaw_joint")
     
-    bow_pitch_01_idx_val = bow_pitch_01_idx[0].item() if bow_pitch_01_idx is not None and len(bow_pitch_01_idx) > 0 else None
-    bow_pitch_02_idx_val = bow_pitch_02_idx[0].item() if bow_pitch_02_idx is not None and len(bow_pitch_02_idx) > 0 else None
-    bow_pitch_03_idx_val = bow_pitch_03_idx[0].item() if bow_pitch_03_idx is not None and len(bow_pitch_03_idx) > 0 else None
-    bow_yaw_idx_val = bow_yaw_idx[0].item() if bow_yaw_idx is not None and len(bow_yaw_idx) > 0 else None
+    def get_joint_idx(idx_result):
+        if idx_result is None or len(idx_result) == 0:
+            return None
+        val = idx_result[0]
+        return val.item() if hasattr(val, 'item') else int(val)
+    
+    bow_pitch_01_idx_val = get_joint_idx(bow_pitch_01_idx)
+    bow_pitch_02_idx_val = get_joint_idx(bow_pitch_02_idx)
+    bow_pitch_03_idx_val = get_joint_idx(bow_pitch_03_idx)
+    bow_yaw_idx_val = get_joint_idx(bow_yaw_idx)
     
     default_joint_targets = robot.data.default_joint_pos.clone()
     
