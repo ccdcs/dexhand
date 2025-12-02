@@ -61,17 +61,6 @@ CX002_CONFIG = ArticulationCfg(
 
 class Cx002SceneCfg(InteractiveSceneCfg):
     robot = CX002_CONFIG.replace(prim_path="{ENV_REGEX_NS}/Robot")
-    
-    box_1 = AssetBaseCfg(
-        prim_path="/World/box_1",
-        spawn=sim_utils.CuboidCfg(
-            size=(0.2, 0.2, 0.2),
-            rigid_props=sim_utils.RigidBodyPropertiesCfg(),
-            collision_props=sim_utils.CollisionPropertiesCfg(),
-            visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.8, 0.2, 0.2)),
-        ),
-        init_state=AssetBaseCfg.InitialStateCfg(pos=(1.0, 0.0, 0.5)),
-    )
 
 
 class JointControlUI:
