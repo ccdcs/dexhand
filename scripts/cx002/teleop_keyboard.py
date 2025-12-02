@@ -177,8 +177,8 @@ def main():
         pass
 
     sim_dt = sim.get_physics_dt()
-    joint_speed = 2.0
-    base_speed = 2.0
+    joint_speed = 2000
+    base_speed = 20
     
     joint_targets = default_joint_targets.clone()
     joint_offsets = torch.zeros_like(default_joint_targets)
