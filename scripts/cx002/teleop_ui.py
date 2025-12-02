@@ -26,6 +26,7 @@ simulation_app = app_launcher.app
 import torch
 import isaaclab.sim as sim_utils
 from isaaclab.actuators import ImplicitActuatorCfg
+from isaaclab.assets import AssetBaseCfg
 from isaaclab.assets.articulation import ArticulationCfg
 from isaaclab.scene import InteractiveScene, InteractiveSceneCfg
 from isaaclab.sim.spawners.from_files import GroundPlaneCfg, spawn_ground_plane
@@ -60,6 +61,46 @@ CX002_CONFIG = ArticulationCfg(
 
 class Cx002SceneCfg(InteractiveSceneCfg):
     robot = CX002_CONFIG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+    
+    box_1 = AssetBaseCfg(
+        prim_path="/World/box_1",
+        spawn=sim_utils.CuboidCfg(
+            size=(0.2, 0.2, 0.2),
+            rigid_props=sim_utils.RigidBodyPropertiesCfg(mass=1.0),
+            visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.8, 0.2, 0.2)),
+        ),
+        init_state=AssetBaseCfg.InitialStateCfg(pos=(1.0, 0.5, 0.5)),
+    )
+    
+    box_2 = AssetBaseCfg(
+        prim_path="/World/box_2",
+        spawn=sim_utils.CuboidCfg(
+            size=(0.2, 0.2, 0.2),
+            rigid_props=sim_utils.RigidBodyPropertiesCfg(mass=1.0),
+            visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.2, 0.8, 0.2)),
+        ),
+        init_state=AssetBaseCfg.InitialStateCfg(pos=(-1.0, 0.5, 0.5)),
+    )
+    
+    sphere_1 = AssetBaseCfg(
+        prim_path="/World/sphere_1",
+        spawn=sim_utils.SphereCfg(
+            radius=0.15,
+            rigid_props=sim_utils.RigidBodyPropertiesCfg(mass=0.5),
+            visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.2, 0.2, 0.8)),
+        ),
+        init_state=AssetBaseCfg.InitialStateCfg(pos=(0.0, 1.0, 0.5)),
+    )
+    
+    sphere_2 = AssetBaseCfg(
+        prim_path="/World/sphere_2",
+        spawn=sim_utils.SphereCfg(
+            radius=0.15,
+            rigid_props=sim_utils.RigidBodyPropertiesCfg(mass=0.5),
+            visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.8, 0.8, 0.2)),
+        ),
+        init_state=AssetBaseCfg.InitialStateCfg(pos=(0.5, -1.0, 0.5)),
+    )
 
 
 class JointControlUI:
@@ -69,7 +110,7 @@ class JointControlUI:
         self.joint_data = joint_data
         self.root = tk.Tk()
         self.root.title("CX002 Robot Joint Control")
-        self.root.geometry("700x900")
+        self.root.geometry("1000x1200")
         
         self.sliders = {}
         self.value_labels = {}
@@ -128,8 +169,8 @@ class JointControlUI:
         
     def create_joint_slider(self, parent, row, joint_name, display_name, min_val, max_val):
         """Create a slider for a joint."""
-        label = ttk.Label(parent, text=display_name, width=15)
-        label.grid(row=row, column=0, padx=5, pady=5, sticky=tk.W)
+        label = ttk.Label(parent, text=display_name, width=18, font=("Arial", 10))
+        label.grid(row=row, column=0, padx=10, pady=8, sticky=tk.W)
         
         def make_callback(name):
             def callback(val):
@@ -141,16 +182,17 @@ class JointControlUI:
             from_=min_val,
             to=max_val,
             orient=tk.HORIZONTAL,
-            command=make_callback(joint_name)
+            command=make_callback(joint_name),
+            length=300
         )
         slider.set(0.0)
-        slider.grid(row=row, column=1, sticky=(tk.W, tk.E), padx=5, pady=5)
+        slider.grid(row=row, column=1, sticky=(tk.W, tk.E), padx=10, pady=8)
         
-        value_label = ttk.Label(parent, text="0.00", width=10)
-        value_label.grid(row=row, column=2, padx=5, pady=5)
+        value_label = ttk.Label(parent, text="0.00", width=12, font=("Arial", 10))
+        value_label.grid(row=row, column=2, padx=10, pady=8)
         
-        current_label = ttk.Label(parent, text="Cur: 0.00", width=15)
-        current_label.grid(row=row, column=3, padx=5, pady=5)
+        current_label = ttk.Label(parent, text="Cur: 0.00", width=18, font=("Arial", 10))
+        current_label.grid(row=row, column=3, padx=10, pady=8)
         
         self.sliders[joint_name] = slider
         self.value_labels[joint_name] = value_label
