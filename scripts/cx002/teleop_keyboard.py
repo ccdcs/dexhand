@@ -184,9 +184,11 @@ def main():
     joint_offsets = torch.zeros_like(default_joint_targets)
     base_velocity = torch.zeros((args_cli.num_envs, 3), device=sim.device)
     
+    prev_keys_pressed = {k: False for k in keys_pressed.keys()}
+    step_size = 1
+    
     while simulation_app.is_running():
         base_velocity.zero_()
-        joint_offsets.zero_()
         
         if keys_pressed["i"]:
             base_velocity[:, 0] = base_speed
@@ -198,32 +200,34 @@ def main():
             base_velocity[:, 1] = -base_speed
         
         if bow_pitch_01_idx_val is not None:
-            if keys_pressed["w"]:
-                joint_offsets[:, bow_pitch_01_idx_val] += joint_speed * sim_dt
-            if keys_pressed["s"]:
-                joint_offsets[:, bow_pitch_01_idx_val] -= joint_speed * sim_dt
-            if keys_pressed["a"]:
-                joint_offsets[:, bow_pitch_01_idx_val] += joint_speed * sim_dt * 0.5
-            if keys_pressed["d"]:
-                joint_offsets[:, bow_pitch_01_idx_val] -= joint_speed * sim_dt * 0.5
+            if keys_pressed["w"] and not prev_keys_pressed["w"]:
+                joint_offsets[:, bow_pitch_01_idx_val] += step_size
+            if keys_pressed["s"] and not prev_keys_pressed["s"]:
+                joint_offsets[:, bow_pitch_01_idx_val] -= step_size
+            if keys_pressed["a"] and not prev_keys_pressed["a"]:
+                joint_offsets[:, bow_pitch_01_idx_val] += step_size * 0.5
+            if keys_pressed["d"] and not prev_keys_pressed["d"]:
+                joint_offsets[:, bow_pitch_01_idx_val] -= step_size * 0.5
         
         if bow_pitch_02_idx_val is not None:
-            if keys_pressed["q"]:
-                joint_offsets[:, bow_pitch_02_idx_val] += joint_speed * sim_dt
-            if keys_pressed["e"]:
-                joint_offsets[:, bow_pitch_02_idx_val] -= joint_speed * sim_dt
+            if keys_pressed["q"] and not prev_keys_pressed["q"]:
+                joint_offsets[:, bow_pitch_02_idx_val] += step_size
+            if keys_pressed["e"] and not prev_keys_pressed["e"]:
+                joint_offsets[:, bow_pitch_02_idx_val] -= step_size
         
         if bow_pitch_03_idx_val is not None:
-            if keys_pressed["z"]:
-                joint_offsets[:, bow_pitch_03_idx_val] += joint_speed * sim_dt
-            if keys_pressed["c"]:
-                joint_offsets[:, bow_pitch_03_idx_val] -= joint_speed * sim_dt
+            if keys_pressed["z"] and not prev_keys_pressed["z"]:
+                joint_offsets[:, bow_pitch_03_idx_val] += step_size
+            if keys_pressed["c"] and not prev_keys_pressed["c"]:
+                joint_offsets[:, bow_pitch_03_idx_val] -= step_size
         
         if bow_yaw_idx_val is not None:
-            if keys_pressed["r"]:
-                joint_offsets[:, bow_yaw_idx_val] += joint_speed * sim_dt
-            if keys_pressed["f"]:
-                joint_offsets[:, bow_yaw_idx_val] -= joint_speed * sim_dt
+            if keys_pressed["r"] and not prev_keys_pressed["r"]:
+                joint_offsets[:, bow_yaw_idx_val] += step_size
+            if keys_pressed["f"] and not prev_keys_pressed["f"]:
+                joint_offsets[:, bow_yaw_idx_val] -= step_size
+        
+        prev_keys_pressed = keys_pressed.copy()
         
         joint_targets = default_joint_targets + joint_offsets
         
