@@ -66,7 +66,7 @@ class Cx002SceneCfg(InteractiveSceneCfg):
         prim_path="/World/box_1",
         spawn=sim_utils.CuboidCfg(
             size=(0.2, 0.2, 0.2),
-            rigid_props=sim_utils.RigidBodyPropertiesCfg(mass=1.0),
+            rigid_props=sim_utils.RigidBodyPropertiesCfg(),
             visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.8, 0.2, 0.2)),
         ),
         init_state=AssetBaseCfg.InitialStateCfg(pos=(1.0, 0.5, 0.5)),
@@ -76,7 +76,7 @@ class Cx002SceneCfg(InteractiveSceneCfg):
         prim_path="/World/box_2",
         spawn=sim_utils.CuboidCfg(
             size=(0.2, 0.2, 0.2),
-            rigid_props=sim_utils.RigidBodyPropertiesCfg(mass=1.0),
+            rigid_props=sim_utils.RigidBodyPropertiesCfg(),
             visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.2, 0.8, 0.2)),
         ),
         init_state=AssetBaseCfg.InitialStateCfg(pos=(-1.0, 0.5, 0.5)),
@@ -86,7 +86,7 @@ class Cx002SceneCfg(InteractiveSceneCfg):
         prim_path="/World/sphere_1",
         spawn=sim_utils.SphereCfg(
             radius=0.15,
-            rigid_props=sim_utils.RigidBodyPropertiesCfg(mass=0.5),
+            rigid_props=sim_utils.RigidBodyPropertiesCfg(),
             visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.2, 0.2, 0.8)),
         ),
         init_state=AssetBaseCfg.InitialStateCfg(pos=(0.0, 1.0, 0.5)),
@@ -96,7 +96,7 @@ class Cx002SceneCfg(InteractiveSceneCfg):
         prim_path="/World/sphere_2",
         spawn=sim_utils.SphereCfg(
             radius=0.15,
-            rigid_props=sim_utils.RigidBodyPropertiesCfg(mass=0.5),
+            rigid_props=sim_utils.RigidBodyPropertiesCfg(),
             visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.8, 0.8, 0.2)),
         ),
         init_state=AssetBaseCfg.InitialStateCfg(pos=(0.5, -1.0, 0.5)),
