@@ -67,6 +67,7 @@ class Cx002SceneCfg(InteractiveSceneCfg):
         spawn=sim_utils.CuboidCfg(
             size=(0.2, 0.2, 0.2),
             rigid_props=sim_utils.RigidBodyPropertiesCfg(),
+            collision_props=sim_utils.CollisionPropertiesCfg(),
             visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.8, 0.2, 0.2)),
         ),
         init_state=AssetBaseCfg.InitialStateCfg(pos=(1.0, 0.5, 0.5)),
@@ -77,6 +78,7 @@ class Cx002SceneCfg(InteractiveSceneCfg):
         spawn=sim_utils.CuboidCfg(
             size=(0.2, 0.2, 0.2),
             rigid_props=sim_utils.RigidBodyPropertiesCfg(),
+            collision_props=sim_utils.CollisionPropertiesCfg(),
             visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.2, 0.8, 0.2)),
         ),
         init_state=AssetBaseCfg.InitialStateCfg(pos=(-1.0, 0.5, 0.5)),
@@ -87,6 +89,7 @@ class Cx002SceneCfg(InteractiveSceneCfg):
         spawn=sim_utils.SphereCfg(
             radius=0.15,
             rigid_props=sim_utils.RigidBodyPropertiesCfg(),
+            collision_props=sim_utils.CollisionPropertiesCfg(),
             visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.2, 0.2, 0.8)),
         ),
         init_state=AssetBaseCfg.InitialStateCfg(pos=(0.0, 1.0, 0.5)),
@@ -97,6 +100,7 @@ class Cx002SceneCfg(InteractiveSceneCfg):
         spawn=sim_utils.SphereCfg(
             radius=0.15,
             rigid_props=sim_utils.RigidBodyPropertiesCfg(),
+            collision_props=sim_utils.CollisionPropertiesCfg(),
             visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.8, 0.8, 0.2)),
         ),
         init_state=AssetBaseCfg.InitialStateCfg(pos=(0.5, -1.0, 0.5)),
@@ -110,7 +114,7 @@ class JointControlUI:
         self.joint_data = joint_data
         self.root = tk.Tk()
         self.root.title("CX002 Robot Joint Control")
-        self.root.geometry("1000x1200")
+        self.root.geometry("1400x1600")
         
         self.sliders = {}
         self.value_labels = {}
@@ -125,8 +129,8 @@ class JointControlUI:
         
         row = 0
         
-        ttk.Label(main_frame, text="Bow/Torso Joints", font=("Arial", 12, "bold")).grid(
-            row=row, column=0, columnspan=4, pady=10, sticky=tk.W
+        ttk.Label(main_frame, text="Bow/Torso Joints", font=("Arial", 16, "bold")).grid(
+            row=row, column=0, columnspan=4, pady=15, sticky=tk.W
         )
         row += 1
         
@@ -146,8 +150,8 @@ class JointControlUI:
         )
         row += 1
         
-        ttk.Label(main_frame, text="Head Joints", font=("Arial", 12, "bold")).grid(
-            row=row, column=0, columnspan=4, pady=10, sticky=tk.W
+        ttk.Label(main_frame, text="Head Joints", font=("Arial", 16, "bold")).grid(
+            row=row, column=0, columnspan=4, pady=15, sticky=tk.W
         )
         row += 1
         
@@ -169,8 +173,8 @@ class JointControlUI:
         
     def create_joint_slider(self, parent, row, joint_name, display_name, min_val, max_val):
         """Create a slider for a joint."""
-        label = ttk.Label(parent, text=display_name, width=18, font=("Arial", 10))
-        label.grid(row=row, column=0, padx=10, pady=8, sticky=tk.W)
+        label = ttk.Label(parent, text=display_name, width=22, font=("Arial", 14, "bold"))
+        label.grid(row=row, column=0, padx=15, pady=12, sticky=tk.W)
         
         def make_callback(name):
             def callback(val):
@@ -183,16 +187,16 @@ class JointControlUI:
             to=max_val,
             orient=tk.HORIZONTAL,
             command=make_callback(joint_name),
-            length=300
+            length=500
         )
         slider.set(0.0)
-        slider.grid(row=row, column=1, sticky=(tk.W, tk.E), padx=10, pady=8)
+        slider.grid(row=row, column=1, sticky=(tk.W, tk.E), padx=15, pady=12)
         
-        value_label = ttk.Label(parent, text="0.00", width=12, font=("Arial", 10))
-        value_label.grid(row=row, column=2, padx=10, pady=8)
+        value_label = ttk.Label(parent, text="0.00", width=15, font=("Arial", 14))
+        value_label.grid(row=row, column=2, padx=15, pady=12)
         
-        current_label = ttk.Label(parent, text="Cur: 0.00", width=18, font=("Arial", 10))
-        current_label.grid(row=row, column=3, padx=10, pady=8)
+        current_label = ttk.Label(parent, text="Cur: 0.00", width=20, font=("Arial", 14))
+        current_label.grid(row=row, column=3, padx=15, pady=12)
         
         self.sliders[joint_name] = slider
         self.value_labels[joint_name] = value_label
