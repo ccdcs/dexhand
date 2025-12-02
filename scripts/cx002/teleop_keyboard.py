@@ -47,8 +47,8 @@ CX002_CONFIG = ArticulationCfg(
     actuators={
         "all_joints": ImplicitActuatorCfg(
             joint_names_expr=[".*"],
-            effort_limit_sim=500.0,
-            velocity_limit_sim=100.0,
+            effort_limit_sim=5000.0,
+            velocity_limit_sim=1000.0,
             stiffness=5000.0,
             damping=2000.0,
         ),
@@ -108,7 +108,7 @@ def main():
     default_root_orientation = root_state[:, 3:7].clone()
     robot.write_root_state_to_sim(root_state, torch.arange(args_cli.num_envs, device=sim.device))
     
-    for i in range(200):
+    for i in range(20):
         robot.set_joint_position_target(default_joint_targets)
         root_state = robot.data.root_state_w.clone()
         root_state[:, 3:7] = default_root_orientation
@@ -177,8 +177,8 @@ def main():
         pass
 
     sim_dt = sim.get_physics_dt()
-    joint_speed = 2000
-    base_speed = 20
+    joint_speed = 200
+    base_speed = 10
     
     joint_targets = default_joint_targets.clone()
     joint_offsets = torch.zeros_like(default_joint_targets)
