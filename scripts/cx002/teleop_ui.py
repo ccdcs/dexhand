@@ -8,6 +8,7 @@ UI-based teleoperation for cx002 robot using tkinter sliders.
 """
 
 import argparse
+import queue
 import threading
 import tkinter as tk
 from tkinter import ttk
@@ -130,12 +131,17 @@ class JointControlUI:
         label = ttk.Label(parent, text=display_name, width=15)
         label.grid(row=row, column=0, padx=5, pady=5, sticky=tk.W)
         
+        def make_callback(name):
+            def callback(val):
+                self.on_slider_change(name, val)
+            return callback
+        
         slider = ttk.Scale(
             parent,
             from_=min_val,
             to=max_val,
             orient=tk.HORIZONTAL,
-            command=lambda val, name=joint_name: self.on_slider_change(name, val)
+            command=make_callback(joint_name)
         )
         slider.set(0.0)
         slider.grid(row=row, column=1, sticky=(tk.W, tk.E), padx=5, pady=5)
@@ -155,8 +161,10 @@ class JointControlUI:
     def on_slider_change(self, joint_name, value):
         """Handle slider value change."""
         val = float(value)
-        self.joint_data["targets"][joint_name] = val
-        self.value_labels[joint_name].config(text=f"{val:.3f}")
+        with self.joint_data["lock"]:
+            self.joint_data["targets"][joint_name] = val
+        if joint_name in self.value_labels:
+            self.value_labels[joint_name].config(text=f"{val:.3f}")
         
     def reset_all(self):
         """Reset all sliders to zero."""
@@ -171,8 +179,20 @@ class JointControlUI:
             if joint_name in self.current_labels:
                 self.current_labels[joint_name].config(text=f"Cur: {current_pos:.3f}")
     
-    def run(self):
+    def poll_updates(self, update_queue):
+        """Poll for updates from simulation thread."""
+        try:
+            while True:
+                current_positions = update_queue.get_nowait()
+                self.update_current_positions(current_positions)
+        except queue.Empty:
+            pass
+        finally:
+            self.root.after(50, lambda: self.poll_updates(update_queue))
+    
+    def run(self, update_queue):
         """Start the UI main loop."""
+        self.root.after(50, lambda: self.poll_updates(update_queue))
         self.root.mainloop()
 
 
@@ -237,48 +257,54 @@ def main():
     
     joint_data = {
         "targets": {},
-        "lock": threading.Lock()
+        "lock": threading.Lock(),
+        "running": True
     }
     
+    update_queue = queue.Queue()
     ui = JointControlUI(joint_data)
     
-    def ui_thread():
-        ui.run()
-    
-    ui_thread_obj = threading.Thread(target=ui_thread, daemon=True)
-    ui_thread_obj.start()
-    
-    sim_dt = sim.get_physics_dt()
-    
-    print("[INFO]: UI teleoperation started. Adjust sliders to control joints.")
-    
-    while simulation_app.is_running():
-        with joint_data["lock"]:
-            joint_targets = default_joint_targets.clone()
+    def simulation_thread():
+        """Run simulation in background thread."""
+        sim_dt = sim.get_physics_dt()
+        
+        print("[INFO]: UI teleoperation started. Adjust sliders to control joints.")
+        
+        while simulation_app.is_running() and joint_data["running"]:
+            with joint_data["lock"]:
+                joint_targets = default_joint_targets.clone()
+                
+                for joint_name, target_val in joint_data["targets"].items():
+                    if joint_name in joint_indices and joint_indices[joint_name] is not None:
+                        joint_targets[:, joint_indices[joint_name]] = target_val
+                
+                current_positions = {}
+                for joint_name in joint_names:
+                    if joint_name in joint_indices and joint_indices[joint_name] is not None:
+                        current_positions[joint_name] = robot.data.joint_pos[0, joint_indices[joint_name]].item()
             
-            for joint_name, target_val in joint_data["targets"].items():
-                if joint_name in joint_indices and joint_indices[joint_name] is not None:
-                    joint_targets[:, joint_indices[joint_name]] = target_val
+            robot.set_joint_position_target(joint_targets)
             
-            current_positions = {}
-            for joint_name in joint_names:
-                if joint_name in joint_indices and joint_indices[joint_name] is not None:
-                    current_positions[joint_name] = robot.data.joint_pos[0, joint_indices[joint_name]].item()
-        
-        robot.set_joint_position_target(joint_targets)
-        
-        root_state = robot.data.root_state_w.clone()
-        root_state[:, 3:7] = default_root_orientation
-        robot.write_root_pose_to_sim(root_state[:, :7], torch.arange(args_cli.num_envs, device=sim.device))
-        
-        scene.write_data_to_sim()
-        sim.step(render=True)
-        scene.update(sim_dt)
-        
-        try:
-            ui.root.after(0, lambda: ui.update_current_positions(current_positions))
-        except tk.TclError:
-            pass
+            root_state = robot.data.root_state_w.clone()
+            root_state[:, 3:7] = default_root_orientation
+            robot.write_root_pose_to_sim(root_state[:, :7], torch.arange(args_cli.num_envs, device=sim.device))
+            
+            scene.write_data_to_sim()
+            sim.step(render=True)
+            scene.update(sim_dt)
+            
+            try:
+                update_queue.put_nowait(current_positions)
+            except queue.Full:
+                pass
+    
+    sim_thread_obj = threading.Thread(target=simulation_thread, daemon=True)
+    sim_thread_obj.start()
+    
+    try:
+        ui.run(update_queue)
+    finally:
+        joint_data["running"] = False
 
 
 if __name__ == "__main__":
