@@ -78,6 +78,10 @@ class ReachingEnvCfg(DirectRLEnvCfg):
     action_scale_pos = 0.01  # [m]
     action_scale_rot = 0.1  # [rad]
 
+    # velocity limits
+    max_linear_velocity = 0.5  # [m/s]
+    max_angular_velocity = 1.57  # [rad/s]
+
     # reset states/conditions
     pos_tolerance = 0.05  # [m]
     orn_tolerance = 0.1745  # [rad] (~10 degrees)

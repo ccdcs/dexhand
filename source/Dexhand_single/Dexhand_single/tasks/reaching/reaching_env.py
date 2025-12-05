@@ -11,6 +11,8 @@ from isaaclab.utils.math import (
     quat_error_magnitude,
     create_rotation_matrix_from_view,
     quat_from_matrix,
+    axis_angle_from_quat,
+    quat_from_angle_axis,
 )
 from .reaching_env_cfg import ReachingEnvCfg
 
@@ -30,7 +32,6 @@ class ReachingEnv(DirectRLEnv):
             .unsqueeze(0)
             .repeat(self.num_envs, 1)
         )
-        # its a kinematic object, so it has no velocity
         self.ball_lin_vel = torch.zeros((self.num_envs, 3), device=self.device)
         self.ball_ang_vel = torch.zeros((self.num_envs, 3), device=self.device)
 
@@ -51,26 +52,51 @@ class ReachingEnv(DirectRLEnv):
         current_pos = self.robot.data.root_pos_w
         current_quat = self.robot.data.root_quat_w
 
-        # Extract delta actions from policy output
-        delta_pos_action = self.actions[:, :3] * self.cfg.action_scale_pos
-        delta_orn_action = self.actions[:, 3:]
+        # The agent's actions are in [-1, 1] range, map them to [-max_vel, +max_vel]
+        target_lin_vel_local = self.actions[:, :3] * self.cfg.max_linear_velocity
 
-        # Normalize the delta orientation action to ensure it's a unit quaternion
-        delta_orn_quat = torch.nn.functional.normalize(delta_orn_action, p=2, dim=1)
+        # For angular velocity, the policy outputs a 4D quaternion-like action.
+        # We will normalize it to get a unit quaternion, convert to axis-angle,
+        # and then scale the axis-angle vector by max_angular_velocity.
+        delta_orn_quat_action = torch.nn.functional.normalize(
+            self.actions[:, 3:], p=2, dim=1
+        )
 
-        world_frame_delta_pos = quat_apply(current_quat, delta_pos_action)
-        new_pos = current_pos + world_frame_delta_pos
+        # Convert action quaternion to rotation vector (axis * angle)
+        action_rotation_vector = axis_angle_from_quat(delta_orn_quat_action)
 
-        # Apply delta rotation
-        new_quat = quat_mul(delta_orn_quat, current_quat)
+        # Scale the rotation vector by max_angular_velocity to get desired angular velocity
+        target_ang_vel = action_rotation_vector * self.cfg.max_angular_velocity
 
-        # Scale down the rotation by interpolating
-        w = self.cfg.action_scale_rot
-        final_quat = (1 - w) * current_quat + w * new_quat
-        final_quat = torch.nn.functional.normalize(final_quat, p=2, dim=1)
+        # Transform local linear velocity to world frame
+        world_frame_lin_vel = quat_apply(current_quat, target_lin_vel_local)
 
-        zero_velocities = torch.zeros_like(self.robot.data.root_vel_w)
-        root_state = torch.cat([new_pos, final_quat, zero_velocities], dim=-1)
+        # Clamp velocities to their maximum magnitudes
+        clamped_lin_vel = torch.clamp(
+            world_frame_lin_vel,
+            min=-self.cfg.max_linear_velocity,
+            max=self.cfg.max_linear_velocity,
+        )
+        clamped_ang_vel = torch.clamp(
+            target_ang_vel,
+            min=-self.cfg.max_angular_velocity,
+            max=self.cfg.max_angular_velocity,
+        )
+
+        # Compute the final pose based on the clamped velocities
+        final_pos = current_pos + clamped_lin_vel * self.physics_dt
+
+        clamped_angle = torch.norm(clamped_ang_vel, dim=-1) * self.physics_dt
+        clamped_axis = clamped_ang_vel / (
+            torch.norm(clamped_ang_vel, dim=-1, keepdim=True) + 1e-6
+        )
+        clamped_delta_q = quat_from_angle_axis(clamped_angle, clamped_axis)
+        final_quat = quat_mul(clamped_delta_q, current_quat)
+
+        # Write the clamped state to the simulation
+        root_state = torch.cat(
+            [final_pos, final_quat, clamped_lin_vel, clamped_ang_vel], dim=-1
+        )
         self.robot.write_root_state_to_sim(root_state)
 
         # Set finger joints to default position
@@ -208,12 +234,6 @@ class ReachingEnv(DirectRLEnv):
         joint_pos = self.robot.data.default_joint_pos[env_ids]
         joint_vel = self.robot.data.default_joint_vel[env_ids]
         self.robot.write_joint_state_to_sim(joint_pos, joint_vel, env_ids=env_ids)
-
-        grasp_offset = torch.tensor(self.cfg.grasp_offset, device=self.device)
-        rotated_offset = quat_apply(
-            self.target_quat[env_ids], grasp_offset.expand(num_resets, -1)
-        )
-        ball_pos = self.target_pos[env_ids] + rotated_offset
 
         # Set ball position
         ball_state = torch.cat(
