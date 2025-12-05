@@ -71,7 +71,7 @@ class ReachingEnvCfg(DirectRLEnvCfg):
 
     # rewards
     rew_scale_pos_potential = 10.0
-    rew_scale_orn_potential = 30.0
+    rew_scale_orn_potential = 10.0
     rew_success_bonus = 100.0
 
     # action scales (for delta actions)
