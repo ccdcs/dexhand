@@ -4,7 +4,14 @@ import isaaclab.sim as sim_utils
 from isaaclab.assets import Articulation, RigidObject
 from isaaclab.envs import DirectRLEnv
 from isaaclab.sim.spawners.from_files import GroundPlaneCfg, spawn_ground_plane
-from isaaclab.utils.math import quat_mul, quat_inv, quat_apply, quat_error_magnitude
+from isaaclab.utils.math import (
+    quat_mul,
+    quat_inv,
+    quat_apply,
+    quat_error_magnitude,
+    create_rotation_matrix_from_view,
+    quat_from_matrix,
+)
 from .reaching_env_cfg import ReachingEnvCfg
 
 
@@ -158,26 +165,44 @@ class ReachingEnv(DirectRLEnv):
         self.robot.write_root_state_to_sim(root_state, env_ids=env_ids)
 
         robot_root_pos_w = self.robot.data.root_pos_w[env_ids]
-        base_offset = torch.tensor(
-            self.cfg.target_spawn_base_offset, device=self.device
-        )
-        target_base_pos = robot_root_pos_w + base_offset
 
-        # Generate random offsets for the target position
-        min_rand_offset = torch.tensor(
-            self.cfg.target_spawn_pos_min, device=self.device
+        # Generate random offsets for the object position
+        min_object_offset = torch.tensor(
+            self.cfg.object_spawn_pos_min, device=self.device
         )
-        max_rand_offset = torch.tensor(
-            self.cfg.target_spawn_pos_max, device=self.device
+        max_object_offset = torch.tensor(
+            self.cfg.object_spawn_pos_max, device=self.device
         )
-        random_offset = min_rand_offset + (
-            max_rand_offset - min_rand_offset
+        object_offset = min_object_offset + (
+            max_object_offset - min_object_offset
         ) * torch.rand(num_resets, 3, device=self.device)
-        self.target_pos[env_ids] = target_base_pos + random_offset
+        # The object_pos is relative to the robot's initial position
+        object_pos = robot_root_pos_w + object_offset
 
-        # Generate random orientations
-        random_q = torch.randn(num_resets, 4, device=self.device)
-        self.target_quat[env_ids] = torch.nn.functional.normalize(random_q, p=2, dim=1)
+        up_axis = torch.tensor([0.0, 0.0, 1.0], device=self.device).repeat(
+            num_resets, 1
+        )
+
+        forward_vec = torch.nn.functional.normalize(
+            object_pos - robot_root_pos_w, p=2, dim=-1
+        )
+        right_vec = torch.nn.functional.normalize(
+            torch.cross(up_axis, forward_vec, dim=-1)
+        )
+        up_vec = torch.cross(forward_vec, right_vec, dim=-1)
+
+        rot_matrix_3x3 = torch.stack([right_vec, up_vec, forward_vec], dim=-1)
+
+        self.target_quat[env_ids] = quat_from_matrix(rot_matrix_3x3)
+
+        grasp_offset = torch.tensor(self.cfg.grasp_offset, device=self.device)
+
+        rotated_grasp_offset = quat_apply(
+            self.target_quat[env_ids], -grasp_offset.expand(num_resets, -1)
+        )
+        self.target_pos[env_ids] = object_pos + rotated_grasp_offset
+
+        ball_pos = object_pos
 
         # Reset finger joint positions
         joint_pos = self.robot.data.default_joint_pos[env_ids]
