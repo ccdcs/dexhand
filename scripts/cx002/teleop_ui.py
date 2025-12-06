@@ -61,16 +61,7 @@ CX002_CONFIG = ArticulationCfg(
 
 
 class Cx002SceneCfg(InteractiveSceneCfg):
-    ground = AssetBaseCfg(
-        prim_path="/World/defaultGroundPlane",
-        spawn=sim_utils.GroundPlaneCfg()
-    )
-    
-    dome_light = AssetBaseCfg(
-        prim_path="/World/Light",
-        spawn=sim_utils.DomeLightCfg(intensity=2000.0, color=(0.75, 0.75, 0.75)),
-    )
-    
+
     robot = CX002_CONFIG.replace(prim_path="{ENV_REGEX_NS}/Robot")
 
 
