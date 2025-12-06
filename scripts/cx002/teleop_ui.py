@@ -5,6 +5,7 @@
 
 """
 UI-based teleoperation for cx002 robot using tkinter sliders.
+Implements position-based control with smoothing and velocity limits.
 """
 
 import argparse
@@ -76,10 +77,11 @@ class Cx002SceneCfg(InteractiveSceneCfg):
 class JointControlUI:
     """Tkinter UI for controlling robot joints."""
     
-    def __init__(self, joint_data):
+    def __init__(self, joint_data, joint_limits):
         self.joint_data = joint_data
+        self.joint_limits = joint_limits
         self.root = tk.Tk()
-        self.root.title("CX002 Robot Joint Control")
+        self.root.title("CX002 Robot Teleoperation - Position Control")
         self.root.geometry("1400x1600")
         
         self.sliders = {}
@@ -171,9 +173,12 @@ class JointControlUI:
         self.joint_data["targets"][joint_name] = 0.0
         
     def on_slider_change(self, joint_name, value):
-        """Handle slider value change."""
+        """Handle slider value change with joint limit clamping."""
         val = float(value)
         with self.joint_data["lock"]:
+            if joint_name in self.joint_limits:
+                min_val, max_val = self.joint_limits[joint_name]
+                val = max(min_val, min(max_val, val))
             self.joint_data["targets"][joint_name] = val
         if joint_name in self.value_labels:
             self.value_labels[joint_name].config(text=f"{val:.3f}")
@@ -217,7 +222,7 @@ def main():
     except Exception:
         pass
     
-    sim_cfg = sim_utils.SimulationCfg(device=args_cli.device, dt=1.0/60.0)
+    sim_cfg = sim_utils.SimulationCfg(device=args_cli.device, dt=1.0/200.0)
     sim = sim_utils.SimulationContext(sim_cfg)
     sim.set_camera_view([2.5, 2.5, 2.5], [0.0, 0.0, 0.5])
 
@@ -263,6 +268,15 @@ def main():
         sim.step(render=False)
         scene.update(sim.get_physics_dt())
     
+    joint_limits = {
+        "bow_pitch_joint_01": (-2.2689, 0.87266),
+        "bow_pitch_joint_02": (-1.0472, 1.5708),
+        "bow_pitch_joint_03": (-2.0944, 1.4486),
+        "bow_yaw_joint": (-1.7453, 1.7453),
+        "head_yaw_joint": (-1.5708, 1.5708),
+        "head_pitch_joint": (-0.8727, 0.3491),
+    }
+    
     joint_data = {
         "targets": {},
         "lock": threading.Lock(),
@@ -270,21 +284,46 @@ def main():
     }
     
     update_queue = queue.Queue()
-    ui = JointControlUI(joint_data)
+    ui = JointControlUI(joint_data, joint_limits)
+    
+    def clamp_joint_value(joint_name, value):
+        """Clamp joint value to limits for safety."""
+        if joint_name in joint_limits:
+            min_val, max_val = joint_limits[joint_name]
+            return max(min_val, min(max_val, value))
+        return value
     
     def simulation_thread():
-        """Run simulation in background thread."""
+        """Run simulation in background thread.
+        
+        The robot's internal controller handles:
+        - IK (if using task space)
+        - Trajectory planning
+        - Motion smoothing
+        - Torque/force generation
+        - Low-level control
+        
+        We only send target joint positions/angles.
+        """
         sim_dt = sim.get_physics_dt()
         
         print("[INFO]: UI teleoperation started. Adjust sliders to control joints.")
+        print("[INFO]: Control mode: Position-based (robot handles low-level control)")
+        print("[INFO]: Control frequency: ~200 Hz")
         
         while simulation_app.is_running() and joint_data["running"]:
             with joint_data["lock"]:
                 joint_targets = default_joint_targets.clone()
                 
-                for joint_name, target_val in joint_data["targets"].items():
+                for joint_name in joint_names:
                     if joint_name in joint_indices and joint_indices[joint_name] is not None:
-                        joint_targets[:, joint_indices[joint_name]] = target_val
+                        idx = joint_indices[joint_name]
+                        current_pos = robot.data.joint_pos[0, idx].item()
+                        
+                        target_val = joint_data["targets"].get(joint_name, current_pos)
+                        target_val = clamp_joint_value(joint_name, target_val)
+                        
+                        joint_targets[:, idx] = target_val
                 
                 current_positions = {}
                 for joint_name in joint_names:
