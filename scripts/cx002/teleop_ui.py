@@ -220,6 +220,10 @@ def main():
     scene_cfg = Cx002SceneCfg(num_envs=args_cli.num_envs, env_spacing=2.0)
     scene = InteractiveScene(scene_cfg)
     
+    spawn_ground_plane(prim_path="/World/ground", cfg=GroundPlaneCfg())
+    light_cfg = sim_utils.DomeLightCfg(intensity=2000.0, color=(0.75, 0.75, 0.75))
+    light_cfg.func("/World/Light", light_cfg)
+    
     sim.reset()
     scene.reset()
 
@@ -242,19 +246,17 @@ def main():
         joint_indices[joint_name] = get_joint_idx(idx)
     
     default_joint_targets = robot.data.default_joint_pos.clone()
-    default_root_orientation = torch.tensor([1.0, 0.0, 0.0, 0.0], device=sim.device).unsqueeze(0)
     
-    for _ in range(200):
+    root_state = robot.data.root_state_w.clone()
+    root_state[:, 3:7] = torch.tensor([1.0, 0.0, 0.0, 0.0], device=sim.device)
+    default_root_orientation = root_state[:, 3:7].clone()
+    robot.write_root_state_to_sim(root_state, torch.arange(args_cli.num_envs, device=sim.device))
+    
+    for i in range(20):
+        robot.set_joint_position_target(default_joint_targets)
         root_state = robot.data.root_state_w.clone()
         root_state[:, 3:7] = default_root_orientation
         robot.write_root_pose_to_sim(root_state[:, :7], torch.arange(args_cli.num_envs, device=sim.device))
-        
-        joint_targets = default_joint_targets.clone()
-        for joint_name in joint_names:
-            if joint_indices[joint_name] is not None:
-                joint_targets[:, joint_indices[joint_name]] = 0.0
-        robot.set_joint_position_target(joint_targets)
-        
         scene.write_data_to_sim()
         sim.step(render=False)
         scene.update(sim.get_physics_dt())
@@ -285,21 +287,9 @@ def main():
         return value
     
     def simulation_thread():
-        """Run simulation in background thread.
-        
-        The robot's internal controller handles:
-        - IK (if using task space)
-        - Trajectory planning
-        - Motion smoothing
-        - Torque/force generation
-        - Low-level control
-        
-        We only send target joint positions/angles.
-        """
         sim_dt = sim.get_physics_dt()
         
         print("[INFO]: UI teleoperation started. Adjust sliders to control joints.")
-        print("[INFO]: Control mode: Position-based (robot handles low-level control)")
         print("[INFO]: Control frequency: ~200 Hz")
         
         while simulation_app.is_running() and joint_data["running"]:
