@@ -188,19 +188,23 @@ class JointControlUI:
                 self.current_labels[joint_name].config(text=f"Cur: {current_pos:.3f}")
     
     def poll_updates(self, update_queue):
-        """Poll for updates from simulation thread."""
+        """Poll for updates from simulation."""
         try:
             while True:
                 current_positions = update_queue.get_nowait()
                 self.update_current_positions(current_positions)
         except queue.Empty:
             pass
-        finally:
-            self.root.after(50, lambda: self.poll_updates(update_queue))
     
-    def run(self, update_queue):
-        """Start the UI main loop."""
-        self.root.after(50, lambda: self.poll_updates(update_queue))
+    def run(self, update_queue, sim_step_callback, running_flag):
+        """Start the UI"""
+        def step_simulation():
+            if running_flag["running"]:
+                sim_step_callback()
+                self.poll_updates(update_queue)
+                self.root.after(5, step_simulation)
+        
+        self.root.after(50, step_simulation)
         self.root.mainloop()
 
 
@@ -286,19 +290,13 @@ def main():
             return max(min_val, min(max_val, value))
         return value
     
-    def ui_thread():
-        """Run UI in background thread."""
-        ui.run(update_queue)
-    
-    ui_thread_obj = threading.Thread(target=ui_thread, daemon=True)
-    ui_thread_obj.start()
-    
     sim_dt = sim.get_physics_dt()
     
-    print("[INFO]: UI teleoperation started. Adjust sliders to control joints.")
-    print("[INFO]: Control frequency: ~200 Hz")
-    
-    while simulation_app.is_running() and joint_data["running"]:
+    def simulation_step():
+        
+        if not simulation_app.is_running() or not joint_data["running"]:
+            return
+        
         with joint_data["lock"]:
             joint_targets = default_joint_targets.clone()
             
@@ -332,7 +330,13 @@ def main():
         except queue.Full:
             pass
     
-    joint_data["running"] = False
+    print("[INFO]: UI teleoperation started. Adjust sliders to control joints.")
+    print("[INFO]: Control frequency: ~200 Hz")
+    
+    try:
+        ui.run(update_queue, simulation_step, joint_data)
+    finally:
+        joint_data["running"] = False
 
 
 if __name__ == "__main__":
