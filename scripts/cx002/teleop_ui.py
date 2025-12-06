@@ -286,53 +286,53 @@ def main():
             return max(min_val, min(max_val, value))
         return value
     
-    def simulation_thread():
-        sim_dt = sim.get_physics_dt()
-        
-        print("[INFO]: UI teleoperation started. Adjust sliders to control joints.")
-        print("[INFO]: Control frequency: ~200 Hz")
-        
-        while simulation_app.is_running() and joint_data["running"]:
-            with joint_data["lock"]:
-                joint_targets = default_joint_targets.clone()
-                
-                for joint_name in joint_names:
-                    if joint_name in joint_indices and joint_indices[joint_name] is not None:
-                        idx = joint_indices[joint_name]
-                        current_pos = robot.data.joint_pos[0, idx].item()
-                        
-                        target_val = joint_data["targets"].get(joint_name, current_pos)
-                        target_val = clamp_joint_value(joint_name, target_val)
-                        
-                        joint_targets[:, idx] = target_val
-                
-                current_positions = {}
-                for joint_name in joint_names:
-                    if joint_name in joint_indices and joint_indices[joint_name] is not None:
-                        current_positions[joint_name] = robot.data.joint_pos[0, joint_indices[joint_name]].item()
-            
-            robot.set_joint_position_target(joint_targets)
-            
-            root_state = robot.data.root_state_w.clone()
-            root_state[:, 3:7] = default_root_orientation
-            robot.write_root_pose_to_sim(root_state[:, :7], torch.arange(args_cli.num_envs, device=sim.device))
-            
-            scene.write_data_to_sim()
-            sim.step(render=True)
-            scene.update(sim_dt)
-            
-            try:
-                update_queue.put_nowait(current_positions)
-            except queue.Full:
-                pass
-    
-    sim_thread_obj = threading.Thread(target=simulation_thread, daemon=True)
-    sim_thread_obj.start()
-    
-    try:
+    def ui_thread():
+        """Run UI in background thread."""
         ui.run(update_queue)
-    finally:
-        joint_data["running"] = False
+    
+    ui_thread_obj = threading.Thread(target=ui_thread, daemon=True)
+    ui_thread_obj.start()
+    
+    sim_dt = sim.get_physics_dt()
+    
+    print("[INFO]: UI teleoperation started. Adjust sliders to control joints.")
+    print("[INFO]: Control frequency: ~200 Hz")
+    
+    while simulation_app.is_running() and joint_data["running"]:
+        with joint_data["lock"]:
+            joint_targets = default_joint_targets.clone()
+            
+            for joint_name in joint_names:
+                if joint_name in joint_indices and joint_indices[joint_name] is not None:
+                    idx = joint_indices[joint_name]
+                    current_pos = robot.data.joint_pos[0, idx].item()
+                    
+                    target_val = joint_data["targets"].get(joint_name, current_pos)
+                    target_val = clamp_joint_value(joint_name, target_val)
+                    
+                    joint_targets[:, idx] = target_val
+            
+            current_positions = {}
+            for joint_name in joint_names:
+                if joint_name in joint_indices and joint_indices[joint_name] is not None:
+                    current_positions[joint_name] = robot.data.joint_pos[0, joint_indices[joint_name]].item()
+        
+        robot.set_joint_position_target(joint_targets)
+        
+        root_state = robot.data.root_state_w.clone()
+        root_state[:, 3:7] = default_root_orientation
+        robot.write_root_pose_to_sim(root_state[:, :7], torch.arange(args_cli.num_envs, device=sim.device))
+        
+        scene.write_data_to_sim()
+        sim.step(render=True)
+        scene.update(sim_dt)
+        
+        try:
+            update_queue.put_nowait(current_positions)
+        except queue.Full:
+            pass
+    
+    joint_data["running"] = False
 
 
 if __name__ == "__main__":
