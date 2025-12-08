@@ -14,9 +14,6 @@ import threading
 import tkinter as tk
 from tkinter import ttk
 
-import carb
-import omni.appwindow
-
 from isaaclab.app import AppLauncher
 
 parser = argparse.ArgumentParser(description="UI teleoperation for cx002 robot.")
@@ -27,6 +24,8 @@ args_cli = parser.parse_args()
 app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
 
+import carb
+import omni.appwindow
 import torch
 import isaaclab.sim as sim_utils
 from isaaclab.actuators import ImplicitActuatorCfg
@@ -481,9 +480,9 @@ def main():
                 if joint_name in joint_indices and joint_indices[joint_name] is not None:
                     current_positions[joint_name] = robot.data.joint_pos[0, joint_indices[joint_name]].item()
         
-        # Handle base movement (keyboard only, continuous)
+        # Handle base movement (keyboard only, continuous velocity-based)
         base_velocity = torch.zeros((args_cli.num_envs, 3), device=sim.device)
-        base_speed = 1.0
+        base_speed = 1.0  # Position-based control: smooth movement
         
         if keys_pressed["i"]:
             base_velocity[:, 0] = base_speed
@@ -496,12 +495,15 @@ def main():
         
         robot.set_joint_position_target(joint_targets)
         
-        # Update base position if moving
+        # Update base position if moving (position-based, not velocity)
         root_state = robot.data.root_state_w.clone()
         if torch.any(base_velocity != 0):
             root_state[:, 0:3] += base_velocity * sim_dt
-        root_state[:, 3:7] = default_root_orientation
-        robot.write_root_pose_to_sim(root_state[:, :7], torch.arange(args_cli.num_envs, device=sim.device))
+            root_state[:, 3:7] = default_root_orientation
+            robot.write_root_pose_to_sim(root_state[:, :7], torch.arange(args_cli.num_envs, device=sim.device))
+        else:
+            root_state[:, 3:7] = default_root_orientation
+            robot.write_root_pose_to_sim(root_state[:, :7], torch.arange(args_cli.num_envs, device=sim.device))
         
         scene.write_data_to_sim()
         sim.step(render=True)
