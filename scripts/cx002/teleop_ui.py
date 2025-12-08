@@ -326,6 +326,7 @@ def main():
                 ui.value_labels[joint_name].config(text=f"{default_val:.3f}")
     
     def keyboard_event_handler(event, *args, **kwargs):
+        nonlocal keys_pressed
         input_str = str(event.input)
         
         if event.type == carb.input.KeyboardEventType.KEY_PRESS:
@@ -385,8 +386,15 @@ def main():
             keyboard = appwindow.get_keyboard()
             if keyboard:
                 input_interface.subscribe_to_keyboard_events(keyboard, keyboard_event_handler)
-    except Exception:
-        pass
+                print("[INFO]: Keyboard event handler subscribed successfully.")
+            else:
+                print("[WARNING]: Could not get keyboard from app window.")
+        else:
+            print("[WARNING]: Could not get app window.")
+    except Exception as e:
+        print(f"[ERROR]: Failed to subscribe keyboard events: {e}")
+        import traceback
+        traceback.print_exc()
     
     def clamp_joint_value(joint_name, value):
         """Clamp joint value to limits for safety."""
@@ -399,6 +407,8 @@ def main():
     
     def simulation_step():
         """Single simulation step - handles both keyboard and UI control."""
+        nonlocal keys_pressed
+        
         if not simulation_app.is_running() or not joint_data["running"]:
             return
         
@@ -494,13 +504,13 @@ def main():
         base_velocity = torch.zeros((args_cli.num_envs, 3), device=sim.device)
         base_speed = 1.0  # Position-based control: smooth movement
         
-        if keys_pressed["i"]:
+        if keys_pressed.get("i", False):
             base_velocity[:, 0] = base_speed
-        if keys_pressed["k"]:
+        if keys_pressed.get("k", False):
             base_velocity[:, 0] = -base_speed
-        if keys_pressed["j"]:
+        if keys_pressed.get("j", False):
             base_velocity[:, 1] = base_speed
-        if keys_pressed["l"]:
+        if keys_pressed.get("l", False):
             base_velocity[:, 1] = -base_speed
         
         robot.set_joint_position_target(joint_targets)
