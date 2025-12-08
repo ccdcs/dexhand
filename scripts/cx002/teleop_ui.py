@@ -14,6 +14,9 @@ import threading
 import tkinter as tk
 from tkinter import ttk
 
+import carb
+import omni.appwindow
+
 from isaaclab.app import AppLauncher
 
 parser = argparse.ArgumentParser(description="UI teleoperation for cx002 robot.")
@@ -187,6 +190,13 @@ class JointControlUI:
             if joint_name in self.current_labels:
                 self.current_labels[joint_name].config(text=f"Cur: {current_pos:.3f}")
     
+    def update_slider_from_keyboard(self, joint_name, value):
+        """Update slider position when keyboard changes joint target."""
+        if joint_name in self.sliders:
+            self.sliders[joint_name].set(value)
+            if joint_name in self.value_labels:
+                self.value_labels[joint_name].config(text=f"{value:.3f}")
+    
     def poll_updates(self, update_queue):
         """Poll for updates from simulation."""
         try:
@@ -280,8 +290,109 @@ def main():
         "running": True
     }
     
+    # Initialize joint targets to default positions
+    for joint_name in joint_names:
+        if joint_name in joint_indices and joint_indices[joint_name] is not None:
+            idx = joint_indices[joint_name]
+            default_pos = default_joint_targets[0, idx].item()
+            joint_data["targets"][joint_name] = default_pos
+    
     update_queue = queue.Queue()
+    
+    # Setup keyboard controls (before UI so UI can access them)
+    input_interface = carb.input.acquire_input_interface()
+    keys_pressed = {
+        "i": False, "k": False, "j": False, "l": False,
+        "w": False, "s": False, "a": False, "d": False,
+        "q": False, "e": False,
+        "z": False, "c": False,
+        "r": False, "f": False,
+    }
+    
+    keys_just_pressed = set()
+    keyboard_step_size = 0.1
+    
     ui = JointControlUI(joint_data, joint_limits)
+    
+    # Initialize sliders to default positions
+    for joint_name in joint_names:
+        if joint_name in joint_data["targets"] and joint_name in ui.sliders:
+            default_val = joint_data["targets"][joint_name]
+            ui.sliders[joint_name].set(default_val)
+            if joint_name in ui.value_labels:
+                ui.value_labels[joint_name].config(text=f"{default_val:.3f}")
+    
+    def keyboard_event_handler(event, *args, **kwargs):
+        nonlocal keys_just_pressed
+        input_str = str(event.input)
+        
+        if event.type == carb.input.KeyboardEventType.KEY_PRESS:
+            if input_str.endswith(".I"): 
+                keys_pressed["i"] = True
+                keys_just_pressed.add("i")
+            elif input_str.endswith(".K"): 
+                keys_pressed["k"] = True
+                keys_just_pressed.add("k")
+            elif input_str.endswith(".J"): 
+                keys_pressed["j"] = True
+                keys_just_pressed.add("j")
+            elif input_str.endswith(".L"): 
+                keys_pressed["l"] = True
+                keys_just_pressed.add("l")
+            elif input_str.endswith(".W"): 
+                keys_pressed["w"] = True
+                keys_just_pressed.add("w")
+            elif input_str.endswith(".S"): 
+                keys_pressed["s"] = True
+                keys_just_pressed.add("s")
+            elif input_str.endswith(".A"): 
+                keys_pressed["a"] = True
+                keys_just_pressed.add("a")
+            elif input_str.endswith(".D"): 
+                keys_pressed["d"] = True
+                keys_just_pressed.add("d")
+            elif input_str.endswith(".Q"): 
+                keys_pressed["q"] = True
+                keys_just_pressed.add("q")
+            elif input_str.endswith(".E"): 
+                keys_pressed["e"] = True
+                keys_just_pressed.add("e")
+            elif input_str.endswith(".Z"): 
+                keys_pressed["z"] = True
+                keys_just_pressed.add("z")
+            elif input_str.endswith(".C"): 
+                keys_pressed["c"] = True
+                keys_just_pressed.add("c")
+            elif input_str.endswith(".R"): 
+                keys_pressed["r"] = True
+                keys_just_pressed.add("r")
+            elif input_str.endswith(".F"): 
+                keys_pressed["f"] = True
+                keys_just_pressed.add("f")
+        elif event.type == carb.input.KeyboardEventType.KEY_RELEASE:
+            if input_str.endswith(".I"): keys_pressed["i"] = False
+            elif input_str.endswith(".K"): keys_pressed["k"] = False
+            elif input_str.endswith(".J"): keys_pressed["j"] = False
+            elif input_str.endswith(".L"): keys_pressed["l"] = False
+            elif input_str.endswith(".W"): keys_pressed["w"] = False
+            elif input_str.endswith(".S"): keys_pressed["s"] = False
+            elif input_str.endswith(".A"): keys_pressed["a"] = False
+            elif input_str.endswith(".D"): keys_pressed["d"] = False
+            elif input_str.endswith(".Q"): keys_pressed["q"] = False
+            elif input_str.endswith(".E"): keys_pressed["e"] = False
+            elif input_str.endswith(".Z"): keys_pressed["z"] = False
+            elif input_str.endswith(".C"): keys_pressed["c"] = False
+            elif input_str.endswith(".R"): keys_pressed["r"] = False
+            elif input_str.endswith(".F"): keys_pressed["f"] = False
+    
+    try:
+        appwindow = omni.appwindow.get_default_app_window()
+        if appwindow:
+            keyboard = appwindow.get_keyboard()
+            if keyboard:
+                input_interface.subscribe_to_keyboard_events(keyboard, keyboard_event_handler)
+    except Exception:
+        pass
     
     def clamp_joint_value(joint_name, value):
         """Clamp joint value to limits for safety."""
@@ -293,11 +404,66 @@ def main():
     sim_dt = sim.get_physics_dt()
     
     def simulation_step():
+        """Single simulation step - handles both keyboard and UI control."""
+        nonlocal keys_just_pressed
         
         if not simulation_app.is_running() or not joint_data["running"]:
             return
         
+        # Process keyboard inputs for joints
         with joint_data["lock"]:
+            # Handle keyboard joint control (discrete steps on key press)
+            if "bow_pitch_joint_01" in joint_indices and joint_indices["bow_pitch_joint_01"] is not None:
+                if "w" in keys_just_pressed:
+                    joint_data["targets"]["bow_pitch_joint_01"] += keyboard_step_size
+                    joint_data["targets"]["bow_pitch_joint_01"] = clamp_joint_value("bow_pitch_joint_01", joint_data["targets"]["bow_pitch_joint_01"])
+                    ui.update_slider_from_keyboard("bow_pitch_joint_01", joint_data["targets"]["bow_pitch_joint_01"])
+                if "s" in keys_just_pressed:
+                    joint_data["targets"]["bow_pitch_joint_01"] -= keyboard_step_size
+                    joint_data["targets"]["bow_pitch_joint_01"] = clamp_joint_value("bow_pitch_joint_01", joint_data["targets"]["bow_pitch_joint_01"])
+                    ui.update_slider_from_keyboard("bow_pitch_joint_01", joint_data["targets"]["bow_pitch_joint_01"])
+                if "a" in keys_just_pressed:
+                    joint_data["targets"]["bow_pitch_joint_01"] += keyboard_step_size * 0.5
+                    joint_data["targets"]["bow_pitch_joint_01"] = clamp_joint_value("bow_pitch_joint_01", joint_data["targets"]["bow_pitch_joint_01"])
+                    ui.update_slider_from_keyboard("bow_pitch_joint_01", joint_data["targets"]["bow_pitch_joint_01"])
+                if "d" in keys_just_pressed:
+                    joint_data["targets"]["bow_pitch_joint_01"] -= keyboard_step_size * 0.5
+                    joint_data["targets"]["bow_pitch_joint_01"] = clamp_joint_value("bow_pitch_joint_01", joint_data["targets"]["bow_pitch_joint_01"])
+                    ui.update_slider_from_keyboard("bow_pitch_joint_01", joint_data["targets"]["bow_pitch_joint_01"])
+            
+            if "bow_pitch_joint_02" in joint_indices and joint_indices["bow_pitch_joint_02"] is not None:
+                if "q" in keys_just_pressed:
+                    joint_data["targets"]["bow_pitch_joint_02"] += keyboard_step_size
+                    joint_data["targets"]["bow_pitch_joint_02"] = clamp_joint_value("bow_pitch_joint_02", joint_data["targets"]["bow_pitch_joint_02"])
+                    ui.update_slider_from_keyboard("bow_pitch_joint_02", joint_data["targets"]["bow_pitch_joint_02"])
+                if "e" in keys_just_pressed:
+                    joint_data["targets"]["bow_pitch_joint_02"] -= keyboard_step_size
+                    joint_data["targets"]["bow_pitch_joint_02"] = clamp_joint_value("bow_pitch_joint_02", joint_data["targets"]["bow_pitch_joint_02"])
+                    ui.update_slider_from_keyboard("bow_pitch_joint_02", joint_data["targets"]["bow_pitch_joint_02"])
+            
+            if "bow_pitch_joint_03" in joint_indices and joint_indices["bow_pitch_joint_03"] is not None:
+                if "z" in keys_just_pressed:
+                    joint_data["targets"]["bow_pitch_joint_03"] += keyboard_step_size
+                    joint_data["targets"]["bow_pitch_joint_03"] = clamp_joint_value("bow_pitch_joint_03", joint_data["targets"]["bow_pitch_joint_03"])
+                    ui.update_slider_from_keyboard("bow_pitch_joint_03", joint_data["targets"]["bow_pitch_joint_03"])
+                if "c" in keys_just_pressed:
+                    joint_data["targets"]["bow_pitch_joint_03"] -= keyboard_step_size
+                    joint_data["targets"]["bow_pitch_joint_03"] = clamp_joint_value("bow_pitch_joint_03", joint_data["targets"]["bow_pitch_joint_03"])
+                    ui.update_slider_from_keyboard("bow_pitch_joint_03", joint_data["targets"]["bow_pitch_joint_03"])
+            
+            if "bow_yaw_joint" in joint_indices and joint_indices["bow_yaw_joint"] is not None:
+                if "r" in keys_just_pressed:
+                    joint_data["targets"]["bow_yaw_joint"] += keyboard_step_size
+                    joint_data["targets"]["bow_yaw_joint"] = clamp_joint_value("bow_yaw_joint", joint_data["targets"]["bow_yaw_joint"])
+                    ui.update_slider_from_keyboard("bow_yaw_joint", joint_data["targets"]["bow_yaw_joint"])
+                if "f" in keys_just_pressed:
+                    joint_data["targets"]["bow_yaw_joint"] -= keyboard_step_size
+                    joint_data["targets"]["bow_yaw_joint"] = clamp_joint_value("bow_yaw_joint", joint_data["targets"]["bow_yaw_joint"])
+                    ui.update_slider_from_keyboard("bow_yaw_joint", joint_data["targets"]["bow_yaw_joint"])
+            
+            keys_just_pressed.clear()
+            
+            # Build joint targets from joint_data
             joint_targets = default_joint_targets.clone()
             
             for joint_name in joint_names:
@@ -315,9 +481,25 @@ def main():
                 if joint_name in joint_indices and joint_indices[joint_name] is not None:
                     current_positions[joint_name] = robot.data.joint_pos[0, joint_indices[joint_name]].item()
         
+        # Handle base movement (keyboard only, continuous)
+        base_velocity = torch.zeros((args_cli.num_envs, 3), device=sim.device)
+        base_speed = 1.0
+        
+        if keys_pressed["i"]:
+            base_velocity[:, 0] = base_speed
+        if keys_pressed["k"]:
+            base_velocity[:, 0] = -base_speed
+        if keys_pressed["j"]:
+            base_velocity[:, 1] = base_speed
+        if keys_pressed["l"]:
+            base_velocity[:, 1] = -base_speed
+        
         robot.set_joint_position_target(joint_targets)
         
+        # Update base position if moving
         root_state = robot.data.root_state_w.clone()
+        if torch.any(base_velocity != 0):
+            root_state[:, 0:3] += base_velocity * sim_dt
         root_state[:, 3:7] = default_root_orientation
         robot.write_root_pose_to_sim(root_state[:, :7], torch.arange(args_cli.num_envs, device=sim.device))
         
@@ -330,8 +512,15 @@ def main():
         except queue.Full:
             pass
     
-    print("[INFO]: UI teleoperation started. Adjust sliders to control joints.")
+    print("[INFO]: UI + Keyboard teleoperation started.")
     print("[INFO]: Control frequency: ~200 Hz")
+    print("[INFO]: Keyboard controls:")
+    print("  Base: I/K forward/back, J/L left/right")
+    print("  Bow pitch 01: W/S forward/back, A/D left/right")
+    print("  Bow pitch 02: Q/E up/down")
+    print("  Bow pitch 03: Z/C up/down")
+    print("  Bow yaw: R/F left/right")
+    print("[INFO]: UI sliders also control joints and reflect keyboard changes.")
     
     try:
         ui.run(update_queue, simulation_step, joint_data)
