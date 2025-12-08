@@ -326,7 +326,6 @@ def main():
                 ui.value_labels[joint_name].config(text=f"{default_val:.3f}")
     
     def keyboard_event_handler(event, *args, **kwargs):
-        nonlocal keys_pressed
         input_str = str(event.input)
         
         if event.type == carb.input.KeyboardEventType.KEY_PRESS:
@@ -420,64 +419,64 @@ def main():
             
             # bow_pitch_joint_01: W/S
             if "bow_pitch_joint_01" in joint_indices and joint_indices["bow_pitch_joint_01"] is not None:
-                if keys_pressed["w"]:
+                if keys_pressed.get("w", False):
                     joint_data["targets"]["bow_pitch_joint_01"] += keyboard_step_size
                     joint_data["targets"]["bow_pitch_joint_01"] = clamp_joint_value("bow_pitch_joint_01", joint_data["targets"]["bow_pitch_joint_01"])
                     ui.update_slider_from_keyboard("bow_pitch_joint_01", joint_data["targets"]["bow_pitch_joint_01"])
-                if keys_pressed["s"]:
+                if keys_pressed.get("s", False):
                     joint_data["targets"]["bow_pitch_joint_01"] -= keyboard_step_size
                     joint_data["targets"]["bow_pitch_joint_01"] = clamp_joint_value("bow_pitch_joint_01", joint_data["targets"]["bow_pitch_joint_01"])
                     ui.update_slider_from_keyboard("bow_pitch_joint_01", joint_data["targets"]["bow_pitch_joint_01"])
             
             if "bow_pitch_joint_02" in joint_indices and joint_indices["bow_pitch_joint_02"] is not None:
-                if keys_pressed["q"]:
+                if keys_pressed.get("q", False):
                     joint_data["targets"]["bow_pitch_joint_02"] += keyboard_step_size
                     joint_data["targets"]["bow_pitch_joint_02"] = clamp_joint_value("bow_pitch_joint_02", joint_data["targets"]["bow_pitch_joint_02"])
                     ui.update_slider_from_keyboard("bow_pitch_joint_02", joint_data["targets"]["bow_pitch_joint_02"])
-                if keys_pressed["e"]:
+                if keys_pressed.get("e", False):
                     joint_data["targets"]["bow_pitch_joint_02"] -= keyboard_step_size
                     joint_data["targets"]["bow_pitch_joint_02"] = clamp_joint_value("bow_pitch_joint_02", joint_data["targets"]["bow_pitch_joint_02"])
                     ui.update_slider_from_keyboard("bow_pitch_joint_02", joint_data["targets"]["bow_pitch_joint_02"])
             
             if "bow_pitch_joint_03" in joint_indices and joint_indices["bow_pitch_joint_03"] is not None:
-                if keys_pressed["z"]:
+                if keys_pressed.get("z", False):
                     joint_data["targets"]["bow_pitch_joint_03"] += keyboard_step_size
                     joint_data["targets"]["bow_pitch_joint_03"] = clamp_joint_value("bow_pitch_joint_03", joint_data["targets"]["bow_pitch_joint_03"])
                     ui.update_slider_from_keyboard("bow_pitch_joint_03", joint_data["targets"]["bow_pitch_joint_03"])
-                if keys_pressed["c"]:
+                if keys_pressed.get("c", False):
                     joint_data["targets"]["bow_pitch_joint_03"] -= keyboard_step_size
                     joint_data["targets"]["bow_pitch_joint_03"] = clamp_joint_value("bow_pitch_joint_03", joint_data["targets"]["bow_pitch_joint_03"])
                     ui.update_slider_from_keyboard("bow_pitch_joint_03", joint_data["targets"]["bow_pitch_joint_03"])
             
             # bow_yaw_joint: R/F
             if "bow_yaw_joint" in joint_indices and joint_indices["bow_yaw_joint"] is not None:
-                if keys_pressed["r"]:
+                if keys_pressed.get("r", False):
                     joint_data["targets"]["bow_yaw_joint"] += keyboard_step_size
                     joint_data["targets"]["bow_yaw_joint"] = clamp_joint_value("bow_yaw_joint", joint_data["targets"]["bow_yaw_joint"])
                     ui.update_slider_from_keyboard("bow_yaw_joint", joint_data["targets"]["bow_yaw_joint"])
-                if keys_pressed["f"]:
+                if keys_pressed.get("f", False):
                     joint_data["targets"]["bow_yaw_joint"] -= keyboard_step_size
                     joint_data["targets"]["bow_yaw_joint"] = clamp_joint_value("bow_yaw_joint", joint_data["targets"]["bow_yaw_joint"])
                     ui.update_slider_from_keyboard("bow_yaw_joint", joint_data["targets"]["bow_yaw_joint"])
             
             # head_yaw_joint: T/G
             if "head_yaw_joint" in joint_indices and joint_indices["head_yaw_joint"] is not None:
-                if keys_pressed["t"]:
+                if keys_pressed.get("t", False):
                     joint_data["targets"]["head_yaw_joint"] += keyboard_step_size
                     joint_data["targets"]["head_yaw_joint"] = clamp_joint_value("head_yaw_joint", joint_data["targets"]["head_yaw_joint"])
                     ui.update_slider_from_keyboard("head_yaw_joint", joint_data["targets"]["head_yaw_joint"])
-                if keys_pressed["g"]:
+                if keys_pressed.get("g", False):
                     joint_data["targets"]["head_yaw_joint"] -= keyboard_step_size
                     joint_data["targets"]["head_yaw_joint"] = clamp_joint_value("head_yaw_joint", joint_data["targets"]["head_yaw_joint"])
                     ui.update_slider_from_keyboard("head_yaw_joint", joint_data["targets"]["head_yaw_joint"])
             
             # head_pitch_joint: Y/H
             if "head_pitch_joint" in joint_indices and joint_indices["head_pitch_joint"] is not None:
-                if keys_pressed["y"]:
+                if keys_pressed.get("y", False):
                     joint_data["targets"]["head_pitch_joint"] += keyboard_step_size
                     joint_data["targets"]["head_pitch_joint"] = clamp_joint_value("head_pitch_joint", joint_data["targets"]["head_pitch_joint"])
                     ui.update_slider_from_keyboard("head_pitch_joint", joint_data["targets"]["head_pitch_joint"])
-                if keys_pressed["h"]:
+                if keys_pressed.get("h", False):
                     joint_data["targets"]["head_pitch_joint"] -= keyboard_step_size
                     joint_data["targets"]["head_pitch_joint"] = clamp_joint_value("head_pitch_joint", joint_data["targets"]["head_pitch_joint"])
                     ui.update_slider_from_keyboard("head_pitch_joint", joint_data["targets"]["head_pitch_joint"])
@@ -544,8 +543,6 @@ def main():
     print("  Bow yaw: R/F")
     print("  Head yaw: T/G")
     print("  Head pitch: Y/H")
-    print("[INFO]: UI sliders also control joints and reflect keyboard changes.")
-    print("[INFO]: Hold keys for continuous movement (1 degree per frame at ~200 Hz).")
     
     try:
         ui.run(update_queue, simulation_step, joint_data)
