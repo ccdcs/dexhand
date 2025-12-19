@@ -31,7 +31,7 @@ from isaaclab.assets.articulation import ArticulationCfg
 from isaaclab.scene import InteractiveScene, InteractiveSceneCfg
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 
-def compute_jacobian(joint_positions, R, D1, D2, L, S):
+def compute_jacobian(joint_positions, R, D1, D2, D3, D4, L, S):
     """
     计算雅可比矩阵（根据论文公式）
     
@@ -40,14 +40,15 @@ def compute_jacobian(joint_positions, R, D1, D2, L, S):
     R, D1, D2, L, S: 几何参数
     
     返回:
-    jacobian: 雅可比矩阵 J = [∂θ1/∂l1  ∂θ1/∂l2]
-                              [∂θ2/∂l1  ∂θ2/∂l2]
+    jacobian: 雅可比矩阵 J =  [∂l1/∂θ1  ∂l2/θ1  0]
+                            [∂l1/∂θ2  ∂l2/∂θ2  0]
+                            [0       0       ∂l3/∂θ3]
     """
     # 确保输入是numpy数组
     if hasattr(joint_positions, 'cpu'):
         joint_positions = joint_positions.cpu().numpy()
     
-    theta1, theta2 = joint_positions
+    theta1, theta2, theta3 = joint_positions
     
     # 计算中间变量
     A = R * (1 - np.cos(theta2)) + D2 * np.sin(theta1)
@@ -58,31 +59,62 @@ def compute_jacobian(joint_positions, R, D1, D2, L, S):
     l1_squared = A**2 + (H * np.cos(theta1) - V * np.sin(theta1) - S)**2 + (H * np.sin(theta1) + V * np.cos(theta1) - V)**2
     l2_squared = A**2 + (H * np.cos(theta1) + V * np.sin(theta1) - S)**2 + (H * np.sin(theta1) - V * np.cos(theta1) + V)**2
     
+    # 计算H3和V3（根据论文公式(5)）
+    H3 = D3 + R * np.sin(theta3) + D4 * np.cos(theta3)
+    V3 = R * (1 - np.cos(theta3)) + D4 * np.sin(theta3)
+    l3_squared = H3**2 + V3**2
+
     l1 = np.sqrt(l1_squared)
     l2 = np.sqrt(l2_squared)
+    l3 = np.sqrt(l3_squared)
     
-    # ∂l1/∂θ1
-    dl1_dtheta1 = (-H * np.sin(theta1) - V * np.cos(theta1)) * (H * np.cos(theta1) - V * np.sin(theta1) - S) / l1 + \
-                  (H * np.cos(theta1) - V * np.sin(theta1)) * (H * np.sin(theta1) + V * np.cos(theta1) - V) / l1
     
-    # ∂l1/∂θ2  
-    dl1_dtheta2 = (R * np.sin(theta2) - D2 * np.sin(theta2)) * A / l1 + \
-                  (R * np.cos(theta2) - D2 * np.sin(theta2)) * (H * np.cos(theta1) - V * np.sin(theta1) - S) / l1 + \
-                  (R * np.cos(theta2) - D2 * np.cos(theta2)) * (H * np.sin(theta1) + V * np.cos(theta1) - V) / l1
+    # ∂l1/∂θ1（根据论文公式(1)）
+    # l1² = A² + (H cos θ1 - V sin θ1 - S)² + (H sin θ1 + V cos θ1 - V)²
+    # ∂(l1²)/∂θ1 = 2A * ∂A/∂θ1 + 2(H cos θ1 - V sin θ1 - S) * ∂(H cos θ1 - V sin θ1 - S)/∂θ1 + ...
+    # 其中 ∂A/∂θ1 = D2 * cos(θ1)
+    dA_dtheta1 = D2 * np.cos(theta1)
+    dA_dtheta2 = R * np.sin(theta2)
+    dH_dtheta2 = R * np.cos(theta2) - D2 * np.sin(theta2)
     
+    dl1_dtheta1 = (A * dA_dtheta1 + \
+                   (H * np.cos(theta1) - V * np.sin(theta1) - S) * (-H * np.sin(theta1) - V * np.cos(theta1)) + \
+                   (H * np.sin(theta1) + V * np.cos(theta1) - V) * (H * np.cos(theta1) - V * np.sin(theta1))) / l1
+    
+    # ∂l1/∂θ2
+    dl1_dtheta2 = (A * dA_dtheta2 + \
+                   (H * np.cos(theta1) - V * np.sin(theta1) - S) * dH_dtheta2 * np.cos(theta1) + \
+                   (H * np.sin(theta1) + V * np.cos(theta1) - V) * dH_dtheta2 * np.sin(theta1)) / l1
+    dl1_dtheta3 = 0  
+
     # ∂l2/∂θ1
-    dl2_dtheta1 = (-H * np.sin(theta1) + V * np.cos(theta1)) * (H * np.cos(theta1) + V * np.sin(theta1) - S) / l2 + \
-                  (H * np.cos(theta1) + V * np.sin(theta1)) * (H * np.sin(theta1) - V * np.cos(theta1) + V) / l2
+    dl2_dtheta1 = (A * dA_dtheta1 + \
+                   (H * np.cos(theta1) + V * np.sin(theta1) - S) * (-H * np.sin(theta1) + V * np.cos(theta1)) + \
+                   (H * np.sin(theta1) - V * np.cos(theta1) + V) * (H * np.cos(theta1) + V * np.sin(theta1))) / l2
     
     # ∂l2/∂θ2
-    dl2_dtheta2 = (R * np.sin(theta2) - D2 * np.sin(theta2)) * A / l2 + \
-                  (R * np.cos(theta2) - D2 * np.sin(theta2)) * (H * np.cos(theta1) + V * np.sin(theta1) - S) / l2 + \
-                  (R * np.cos(theta2) - D2 * np.cos(theta2)) * (H * np.sin(theta1) - V * np.cos(theta1) + V) / l2
+    dl2_dtheta2 = (A * dA_dtheta2 + \
+                   (H * np.cos(theta1) + V * np.sin(theta1) - S) * dH_dtheta2 * np.cos(theta1) + \
+                   (H * np.sin(theta1) - V * np.cos(theta1) + V) * dH_dtheta2 * np.sin(theta1)) / l2
+    dl2_dtheta3 = 0
+
+    # ∂l3/∂θ3（根据论文公式(5)）
+    # l3² = H3² + V3²
+    # ∂(l3²)/∂θ3 = 2H3 * ∂H3/∂θ3 + 2V3 * ∂V3/∂θ3
+    # ∂H3/∂θ3 = R cos θ3 - D4 sin θ3
+    # ∂V3/∂θ3 = R sin θ3 + D4 cos θ3
+    dH3_dtheta3 = R * np.cos(theta3) - D4 * np.sin(theta3)
+    dV3_dtheta3 = R * np.sin(theta3) + D4 * np.cos(theta3)
+    dl3_dtheta3 = (H3 * dH3_dtheta3 + V3 * dV3_dtheta3) / l3
     
-    J_forward = np.array([[dl1_dtheta1, dl1_dtheta2],
-                          [dl2_dtheta1, dl2_dtheta2]])
+    dl3_dtheta1 = 0  
+    dl3_dtheta2 = 0
+
+    J_forward = np.array([[dl1_dtheta1, dl1_dtheta2, dl1_dtheta3],
+                        [dl2_dtheta1, dl2_dtheta2, dl2_dtheta3],
+                        [dl3_dtheta1, dl3_dtheta2, dl3_dtheta3]])
     
-    # 返回前向雅可比矩阵（用于IK求解）
+    # 返回逆雅可比矩阵（从关节角度到线缆长度）
     return J_forward
 
 def compute_hydraulic_compliance_stiffness(material_params):
@@ -169,38 +201,19 @@ def compute_compliance_torque_with_length_difference(l_current, l_target, joint_
     delta_l = np.array(l_target) - np.array(l_current)
     
     # 计算雅可比矩阵
-    jacobian = compute_jacobian(joint_positions[:2], R=15, D1=10.5, D2=5, L=27, S=3.5)
+    jacobian = compute_jacobian(joint_positions[:3], R=15, D1=10.5, D2=5, L=27, S=3.5, D3=3.58, D4=3.5)
     
     # 计算液压柔顺性刚度
     Cl = compute_hydraulic_compliance_stiffness(material_params)
     
     # 根据论文公式：Δτ = (1/Cl) * J^T * Δl
-    compliance_torque = np.dot(jacobian.T, delta_l[:2])  # 只使用l1和l2
+    compliance_torque = np.dot(jacobian.T, delta_l)  
     
     # 应用柔顺性缩放
     compliance_torque = compliance_torque * (1.0 / Cl)
     
     return compliance_torque, Cl
 
-def compute_compliance_torque(current_joint_pos, target_joint_pos, compliance_stiffness):
-    """
-    计算柔顺性扭矩
-    
-    参数:
-    current_joint_pos: 当前关节位置
-    target_joint_pos: 目标关节位置
-    compliance_stiffness: 柔顺性刚度参数
-    
-    返回:
-    compliance_torque: 柔顺性扭矩
-    """
-    # 计算角度偏差
-    delta_theta = current_joint_pos - target_joint_pos
-    
-    # 计算柔顺性扭矩 τk = -k(θ0) * Δθ
-    compliance_torque = -compliance_stiffness * delta_theta
-    
-    return compliance_torque
 
 def inverse_kinematics(l1, l2, l3, R, D1, D2, D3, D4, L, S):
     """
