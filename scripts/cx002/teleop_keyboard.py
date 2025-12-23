@@ -85,21 +85,24 @@ def main():
 
     robot = scene["robot"]
     
-    bow_pitch_01_idx, _ = robot.find_joints("bow_pitch_joint_01")
-    bow_pitch_02_idx, _ = robot.find_joints("bow_pitch_joint_02")
-    bow_pitch_03_idx, _ = robot.find_joints("bow_pitch_joint_03")
-    bow_yaw_idx, _ = robot.find_joints("bow_yaw_joint")
+    # Get all joint names from the robot
+    all_joint_names = robot.joint_names
+    print(f"[INFO]: Found {len(all_joint_names)} joints:")
+    for name in all_joint_names:
+        print(f"  - {name}")
     
-    def get_joint_idx(idx_result):
-        if idx_result is None or len(idx_result) == 0:
+    def get_joint_idx(joint_name):
+        """Get joint index by name."""
+        idx, _ = robot.find_joints(joint_name)
+        if idx is None or len(idx) == 0:
             return None
-        val = idx_result[0]
+        val = idx[0]
         return val.item() if hasattr(val, 'item') else int(val)
     
-    bow_pitch_01_idx_val = get_joint_idx(bow_pitch_01_idx)
-    bow_pitch_02_idx_val = get_joint_idx(bow_pitch_02_idx)
-    bow_pitch_03_idx_val = get_joint_idx(bow_pitch_03_idx)
-    bow_yaw_idx_val = get_joint_idx(bow_yaw_idx)
+    # Register all joints with their indices
+    joint_indices = {}
+    for joint_name in all_joint_names:
+        joint_indices[joint_name] = get_joint_idx(joint_name)
     
     default_joint_targets = robot.data.default_joint_pos.clone()
     
@@ -117,53 +120,91 @@ def main():
         sim.step(render=False)
         scene.update(sim.get_physics_dt())
     
+    # Professional keyboard control scheme
+    # Organized by body parts with logical key groupings
+    
     print("[INFO]: Keyboard controls:")
-    print("  Base: I/K forward/back, J/L left/right")
-    print("  Bow pitch 01: W/S forward/back, A/D left/right")
-    print("  Bow pitch 02: Q/E up/down")
-    print("  Bow pitch 03: Z/C up/down")
-    print("  Bow yaw: R/F left/right")
+    print("=" * 60)
+    print("BASE MOVEMENT:")
+    print("  I/K - Forward/Backward")
+    print("  J/L - Left/Right")
+    print()
+    print("BOW/TORSO (4 joints):")
+    print("  W/S - Bow Pitch 01")
+    print("  Q/E - Bow Pitch 02")
+    print("  Z/C - Bow Pitch 03")
+    print("  R/F - Bow Yaw")
+    print()
+    print("HEAD (2 joints):")
+    print("  T/G - Head Yaw")
+    print("  Y/H - Head Pitch")
+    print()
+    print("ARMS (Toggle with TAB, then use same keys for both arms):")
+    print("  TAB - Switch between Left/Right arm")
+    print("  U/O - Shoulder Pitch")
+    print("  1/2 - Shoulder Roll")
+    print("  3/4 - Shoulder Yaw")
+    print("  5/6 - Elbow Roll")
+    print("  7/8 - Elbow Yaw")
+    print("  9/0 - Wrist Roll")
+    print("  -/= - Wrist Pitch")
+    print()
+    print("NOTE: All joint controls use position-based steps (1 degree per press)")
+    print("      Hold keys for continuous movement")
+    print("=" * 60)
 
     input_interface = carb.input.acquire_input_interface()
+    
+    # Base movement keys
     keys_pressed = {
+        # Base
         "i": False, "k": False, "j": False, "l": False,
-        "w": False, "s": False, "a": False, "d": False,
-        "q": False, "e": False,
-        "z": False, "c": False,
-        "r": False, "f": False,
+        # Bow/Torso
+        "w": False, "s": False,  # bow_pitch_joint_01
+        "q": False, "e": False,  # bow_pitch_joint_02
+        "z": False, "c": False,  # bow_pitch_joint_03
+        "r": False, "f": False,  # bow_yaw_joint
+        # Head
+        "t": False, "g": False,  # head_yaw_joint
+        "y": False, "h": False,  # head_pitch_joint
+        # Arm controls (shared for left/right) - using number row
+        "u": False, "o": False,  # shoulder_pitch
+        "1": False, "2": False,  # shoulder_roll
+        "3": False, "4": False,  # shoulder_yaw
+        "5": False, "6": False,  # elbow_roll
+        "7": False, "8": False,  # elbow_yaw
+        "9": False, "0": False,  # wrist_roll
+        "-": False, "=": False,  # wrist_pitch
+        # Arm toggle
+        "tab": False,
     }
+    
+    # Track which arm is active (True = left, False = right)
+    active_arm_left = True
     
     keys_just_pressed = set()
     
     def keyboard_event_handler(event, *args, **kwargs):
-        nonlocal keys_just_pressed
+        nonlocal keys_just_pressed, active_arm_left
         input_str = str(event.input)
         
         if event.type == carb.input.KeyboardEventType.KEY_PRESS:
+            # Base movement
             if input_str.endswith(".I"): 
                 keys_pressed["i"] = True
-                keys_just_pressed.add("i")
             elif input_str.endswith(".K"): 
                 keys_pressed["k"] = True
-                keys_just_pressed.add("k")
             elif input_str.endswith(".J"): 
                 keys_pressed["j"] = True
-                keys_just_pressed.add("j")
             elif input_str.endswith(".L"): 
                 keys_pressed["l"] = True
-                keys_just_pressed.add("l")
+            # Bow/Torso
             elif input_str.endswith(".W"): 
                 keys_pressed["w"] = True
                 keys_just_pressed.add("w")
             elif input_str.endswith(".S"): 
                 keys_pressed["s"] = True
                 keys_just_pressed.add("s")
-            elif input_str.endswith(".A"): 
-                keys_pressed["a"] = True
-                keys_just_pressed.add("a")
-            elif input_str.endswith(".D"): 
-                keys_pressed["d"] = True
-                keys_just_pressed.add("d")
             elif input_str.endswith(".Q"): 
                 keys_pressed["q"] = True
                 keys_just_pressed.add("q")
@@ -182,21 +223,106 @@ def main():
             elif input_str.endswith(".F"): 
                 keys_pressed["f"] = True
                 keys_just_pressed.add("f")
+            # Head
+            elif input_str.endswith(".T"): 
+                keys_pressed["t"] = True
+                keys_just_pressed.add("t")
+            elif input_str.endswith(".G"): 
+                keys_pressed["g"] = True
+                keys_just_pressed.add("g")
+            elif input_str.endswith(".Y"): 
+                keys_pressed["y"] = True
+                keys_just_pressed.add("y")
+            elif input_str.endswith(".H"): 
+                keys_pressed["h"] = True
+                keys_just_pressed.add("h")
+            # Arms
+            elif input_str.endswith(".U"): 
+                keys_pressed["u"] = True
+                keys_just_pressed.add("u")
+            elif input_str.endswith(".O"): 
+                keys_pressed["o"] = True
+                keys_just_pressed.add("o")
+            elif input_str.endswith(".1") or input_str.endswith(".ONE"): 
+                keys_pressed["1"] = True
+                keys_just_pressed.add("1")
+            elif input_str.endswith(".2") or input_str.endswith(".TWO"): 
+                keys_pressed["2"] = True
+                keys_just_pressed.add("2")
+            elif input_str.endswith(".3") or input_str.endswith(".THREE"): 
+                keys_pressed["3"] = True
+                keys_just_pressed.add("3")
+            elif input_str.endswith(".4") or input_str.endswith(".FOUR"): 
+                keys_pressed["4"] = True
+                keys_just_pressed.add("4")
+            elif input_str.endswith(".5") or input_str.endswith(".FIVE"): 
+                keys_pressed["5"] = True
+                keys_just_pressed.add("5")
+            elif input_str.endswith(".6") or input_str.endswith(".SIX"): 
+                keys_pressed["6"] = True
+                keys_just_pressed.add("6")
+            elif input_str.endswith(".7") or input_str.endswith(".SEVEN"): 
+                keys_pressed["7"] = True
+                keys_just_pressed.add("7")
+            elif input_str.endswith(".8") or input_str.endswith(".EIGHT"): 
+                keys_pressed["8"] = True
+                keys_just_pressed.add("8")
+            elif input_str.endswith(".9") or input_str.endswith(".NINE"): 
+                keys_pressed["9"] = True
+                keys_just_pressed.add("9")
+            elif input_str.endswith(".0") or input_str.endswith(".ZERO"): 
+                keys_pressed["0"] = True
+                keys_just_pressed.add("0")
+            elif input_str.endswith(".MINUS") or input_str.endswith(".-"): 
+                keys_pressed["-"] = True
+                keys_just_pressed.add("-")
+            elif input_str.endswith(".EQUALS") or input_str.endswith(".="): 
+                keys_pressed["="] = True
+                keys_just_pressed.add("=")
+            # Arm toggle
+            elif input_str.endswith(".TAB"): 
+                if "tab" not in keys_just_pressed:
+                    active_arm_left = not active_arm_left
+                    arm_name = "LEFT" if active_arm_left else "RIGHT"
+                    print(f"[INFO]: Switched to {arm_name} arm control")
+                keys_pressed["tab"] = True
+                keys_just_pressed.add("tab")
         elif event.type == carb.input.KeyboardEventType.KEY_RELEASE:
+            # Base
             if input_str.endswith(".I"): keys_pressed["i"] = False
             elif input_str.endswith(".K"): keys_pressed["k"] = False
             elif input_str.endswith(".J"): keys_pressed["j"] = False
             elif input_str.endswith(".L"): keys_pressed["l"] = False
+            # Bow/Torso
             elif input_str.endswith(".W"): keys_pressed["w"] = False
             elif input_str.endswith(".S"): keys_pressed["s"] = False
-            elif input_str.endswith(".A"): keys_pressed["a"] = False
-            elif input_str.endswith(".D"): keys_pressed["d"] = False
             elif input_str.endswith(".Q"): keys_pressed["q"] = False
             elif input_str.endswith(".E"): keys_pressed["e"] = False
             elif input_str.endswith(".Z"): keys_pressed["z"] = False
             elif input_str.endswith(".C"): keys_pressed["c"] = False
             elif input_str.endswith(".R"): keys_pressed["r"] = False
             elif input_str.endswith(".F"): keys_pressed["f"] = False
+            # Head
+            elif input_str.endswith(".T"): keys_pressed["t"] = False
+            elif input_str.endswith(".G"): keys_pressed["g"] = False
+            elif input_str.endswith(".Y"): keys_pressed["y"] = False
+            elif input_str.endswith(".H"): keys_pressed["h"] = False
+            # Arms
+            elif input_str.endswith(".U"): keys_pressed["u"] = False
+            elif input_str.endswith(".O"): keys_pressed["o"] = False
+            elif input_str.endswith(".1") or input_str.endswith(".ONE"): keys_pressed["1"] = False
+            elif input_str.endswith(".2") or input_str.endswith(".TWO"): keys_pressed["2"] = False
+            elif input_str.endswith(".3") or input_str.endswith(".THREE"): keys_pressed["3"] = False
+            elif input_str.endswith(".4") or input_str.endswith(".FOUR"): keys_pressed["4"] = False
+            elif input_str.endswith(".5") or input_str.endswith(".FIVE"): keys_pressed["5"] = False
+            elif input_str.endswith(".6") or input_str.endswith(".SIX"): keys_pressed["6"] = False
+            elif input_str.endswith(".7") or input_str.endswith(".SEVEN"): keys_pressed["7"] = False
+            elif input_str.endswith(".8") or input_str.endswith(".EIGHT"): keys_pressed["8"] = False
+            elif input_str.endswith(".9") or input_str.endswith(".NINE"): keys_pressed["9"] = False
+            elif input_str.endswith(".0") or input_str.endswith(".ZERO"): keys_pressed["0"] = False
+            elif input_str.endswith(".MINUS") or input_str.endswith(".-"): keys_pressed["-"] = False
+            elif input_str.endswith(".EQUALS") or input_str.endswith(".="): keys_pressed["="] = False
+            elif input_str.endswith(".TAB"): keys_pressed["tab"] = False
     
     try:
         appwindow = omni.appwindow.get_default_app_window()
@@ -208,54 +334,68 @@ def main():
         pass
 
     sim_dt = sim.get_physics_dt()
-    joint_speed = 200
-    base_speed = 10
+    base_speed = 1.0
+    step_size = 0.0175  # 1 degree in radians (position-based control)
     
     joint_targets = default_joint_targets.clone()
     joint_offsets = torch.zeros_like(default_joint_targets)
     base_velocity = torch.zeros((args_cli.num_envs, 3), device=sim.device)
     
-    step_size = 0.1
+    # Joint name mappings for keyboard control
+    joint_key_mappings = {
+        # Bow/Torso
+        "bow_pitch_joint_01": ("w", "s"),
+        "bow_pitch_joint_02": ("q", "e"),
+        "bow_pitch_joint_03": ("z", "c"),
+        "bow_yaw_joint": ("r", "f"),
+        # Head
+        "head_yaw_joint": ("t", "g"),
+        "head_pitch_joint": ("y", "h"),
+    }
+    
+    # Arm joint mappings (will be prefixed with left_ or right_)
+    arm_joint_mappings = {
+        "shoulder_pitch_joint": ("u", "o"),
+        "shoulder_roll_joint": ("1", "2"),
+        "shoulder_yaw_joint": ("3", "4"),
+        "elbow_roll_joint": ("5", "6"),
+        "elbow_yaw_joint": ("7", "8"),
+        "wrist_roll_joint": ("9", "0"),
+        "wrist_pitch_joint": ("-", "="),
+    }
     
     while simulation_app.is_running():
         base_velocity.zero_()
         
-        if keys_pressed["i"]:
+        # Base movement (continuous)
+        if keys_pressed.get("i", False):
             base_velocity[:, 0] = base_speed
-        if keys_pressed["k"]:
+        if keys_pressed.get("k", False):
             base_velocity[:, 0] = -base_speed
-        if keys_pressed["j"]:
+        if keys_pressed.get("j", False):
             base_velocity[:, 1] = base_speed
-        if keys_pressed["l"]:
+        if keys_pressed.get("l", False):
             base_velocity[:, 1] = -base_speed
         
-        if bow_pitch_01_idx_val is not None:
-            if "w" in keys_just_pressed:
-                joint_offsets[:, bow_pitch_01_idx_val] += step_size
-            if "s" in keys_just_pressed:
-                joint_offsets[:, bow_pitch_01_idx_val] -= step_size
-            if "a" in keys_just_pressed:
-                joint_offsets[:, bow_pitch_01_idx_val] += step_size * 0.5
-            if "d" in keys_just_pressed:
-                joint_offsets[:, bow_pitch_01_idx_val] -= step_size * 0.5
+        # Bow/Torso and Head joints (discrete steps on key press)
+        for joint_name, (inc_key, dec_key) in joint_key_mappings.items():
+            if joint_name in joint_indices and joint_indices[joint_name] is not None:
+                idx = joint_indices[joint_name]
+                if inc_key in keys_just_pressed:
+                    joint_offsets[:, idx] += step_size
+                if dec_key in keys_just_pressed:
+                    joint_offsets[:, idx] -= step_size
         
-        if bow_pitch_02_idx_val is not None:
-            if "q" in keys_just_pressed:
-                joint_offsets[:, bow_pitch_02_idx_val] += step_size
-            if "e" in keys_just_pressed:
-                joint_offsets[:, bow_pitch_02_idx_val] -= step_size
-        
-        if bow_pitch_03_idx_val is not None:
-            if "z" in keys_just_pressed:
-                joint_offsets[:, bow_pitch_03_idx_val] += step_size
-            if "c" in keys_just_pressed:
-                joint_offsets[:, bow_pitch_03_idx_val] -= step_size
-        
-        if bow_yaw_idx_val is not None:
-            if "r" in keys_just_pressed:
-                joint_offsets[:, bow_yaw_idx_val] += step_size
-            if "f" in keys_just_pressed:
-                joint_offsets[:, bow_yaw_idx_val] -= step_size
+        # Arm joints (discrete steps, with left/right toggle)
+        arm_prefix = "left_" if active_arm_left else "right_"
+        for joint_suffix, (inc_key, dec_key) in arm_joint_mappings.items():
+            joint_name = f"{arm_prefix}{joint_suffix}"
+            if joint_name in joint_indices and joint_indices[joint_name] is not None:
+                idx = joint_indices[joint_name]
+                if inc_key in keys_just_pressed:
+                    joint_offsets[:, idx] += step_size
+                if dec_key in keys_just_pressed:
+                    joint_offsets[:, idx] -= step_size
         
         keys_just_pressed.clear()
         
