@@ -17,8 +17,6 @@ args_cli = parser.parse_args()
 app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
 
-import carb
-import omni.appwindow
 import torch
 import isaaclab.sim as sim_utils
 from isaaclab.actuators import ImplicitActuatorCfg
@@ -65,13 +63,17 @@ class JointControlUI:
         self.joint_limits = joint_limits
 
         self.root = tk.Tk()
-        self.root.title("CX002 Teleoperation UI")
+        self.root.title("CX002 Teleoperation UI + Keyboard")
         self.root.geometry("1200x900")
 
         self.sliders = {}
         self.value_labels = {}
 
         self._build_ui()
+
+        # Keyboard bindings (all keyboard input is handled by this Tk window)
+        self.root.bind("<KeyPress>", self._on_key_press)
+        self.root.bind("<KeyRelease>", self._on_key_release)
 
     def _build_ui(self):
         main_frame = ttk.Frame(self.root, padding="10")
@@ -142,6 +144,47 @@ class JointControlUI:
                 self.sliders[joint_name].set(val)
                 if joint_name in self.value_labels:
                     self.value_labels[joint_name].config(text=f"{val:.3f}")
+
+    # --- Keyboard handling via Tk (updates shared key state) ---
+    def _on_key_press(self, event):
+        key = event.keysym.lower()
+        with self.joint_data["lock"]:
+            # Control-mode toggle: F1 -> keyboard, F2 -> UI
+            if key == "f1":
+                self.joint_data["control_mode"] = "keyboard"
+                print("[INFO]: Control mode = KEYBOARD (sliders follow keyboard pose).")
+                return
+            if key == "f2":
+                self.joint_data["control_mode"] = "ui"
+                print("[INFO]: Control mode = UI (sliders drive robot).")
+                return
+
+            # Normalize some special keys
+            if key == "minus":
+                key = "-"
+            elif key == "equal":
+                key = "="
+            elif key == "tab":
+                # Tab is used only inside teleop_keyboard to switch arms.
+                # We will handle arm toggle directly in the sim loop by checking this press.
+                pass
+
+            if key in self.joint_data["keys_pressed"]:
+                # Mark as pressed and add to just-pressed set for discrete steps
+                if not self.joint_data["keys_pressed"][key]:
+                    self.joint_data["keys_pressed"][key] = True
+                    self.joint_data["keys_just_pressed"].add(key)
+
+    def _on_key_release(self, event):
+        key = event.keysym.lower()
+        with self.joint_data["lock"]:
+            if key == "minus":
+                key = "-"
+            elif key == "equal":
+                key = "="
+
+            if key in self.joint_data["keys_pressed"]:
+                self.joint_data["keys_pressed"][key] = False
 
 
 def main():
@@ -231,200 +274,12 @@ def main():
     print("      Hold keys for continuous movement")
     print("=" * 60)
 
-    input_interface = carb.input.acquire_input_interface()
-
-    keys_pressed = {
-        "i": False, "k": False, "j": False, "l": False,
-        "w": False, "s": False,
-        "q": False, "e": False,
-        "z": False, "c": False,
-        "r": False, "f": False,
-        "t": False, "g": False,
-        "y": False, "h": False,
-        "u": False, "o": False,
-        "1": False, "2": False,
-        "3": False, "4": False,
-        "5": False, "6": False,
-        "7": False, "8": False,
-        "9": False, "0": False,
-        "-": False, "=": False,
-    }
-
-    active_arm_left = True
-    keys_just_pressed = set()
-
-    def keyboard_event_handler(event, *args, **kwargs):
-        nonlocal keys_just_pressed, active_arm_left
-        input_str = str(event.input)
-
-        if event.type == carb.input.KeyboardEventType.KEY_PRESS:
-            if input_str.endswith(".I"):
-                keys_pressed["i"] = True
-            elif input_str.endswith(".K"):
-                keys_pressed["k"] = True
-            elif input_str.endswith(".J"):
-                keys_pressed["j"] = True
-            elif input_str.endswith(".L"):
-                keys_pressed["l"] = True
-            elif input_str.endswith(".W"):
-                keys_pressed["w"] = True
-                keys_just_pressed.add("w")
-            elif input_str.endswith(".S"):
-                keys_pressed["s"] = True
-                keys_just_pressed.add("s")
-            elif input_str.endswith(".Q"):
-                keys_pressed["q"] = True
-                keys_just_pressed.add("q")
-            elif input_str.endswith(".E"):
-                keys_pressed["e"] = True
-                keys_just_pressed.add("e")
-            elif input_str.endswith(".Z"):
-                keys_pressed["z"] = True
-                keys_just_pressed.add("z")
-            elif input_str.endswith(".C"):
-                keys_pressed["c"] = True
-                keys_just_pressed.add("c")
-            elif input_str.endswith(".R"):
-                keys_pressed["r"] = True
-                keys_just_pressed.add("r")
-            elif input_str.endswith(".F"):
-                keys_pressed["f"] = True
-                keys_just_pressed.add("f")
-            elif input_str.endswith(".T"):
-                keys_pressed["t"] = True
-                keys_just_pressed.add("t")
-            elif input_str.endswith(".G"):
-                keys_pressed["g"] = True
-                keys_just_pressed.add("g")
-            elif input_str.endswith(".Y"):
-                keys_pressed["y"] = True
-                keys_just_pressed.add("y")
-            elif input_str.endswith(".H"):
-                keys_pressed["h"] = True
-                keys_just_pressed.add("h")
-            elif input_str.endswith(".U"):
-                keys_pressed["u"] = True
-                keys_just_pressed.add("u")
-            elif input_str.endswith(".O"):
-                keys_pressed["o"] = True
-                keys_just_pressed.add("o")
-            elif input_str.endswith(".1"):
-                keys_pressed["1"] = True
-                keys_just_pressed.add("1")
-            elif input_str.endswith(".2"):
-                keys_pressed["2"] = True
-                keys_just_pressed.add("2")
-            elif input_str.endswith(".3"):
-                keys_pressed["3"] = True
-                keys_just_pressed.add("3")
-            elif input_str.endswith(".4"):
-                keys_pressed["4"] = True
-                keys_just_pressed.add("4")
-            elif input_str.endswith(".5"):
-                keys_pressed["5"] = True
-                keys_just_pressed.add("5")
-            elif input_str.endswith(".6"):
-                keys_pressed["6"] = True
-                keys_just_pressed.add("6")
-            elif input_str.endswith(".7"):
-                keys_pressed["7"] = True
-                keys_just_pressed.add("7")
-            elif input_str.endswith(".8"):
-                keys_pressed["8"] = True
-                keys_just_pressed.add("8")
-            elif input_str.endswith(".9"):
-                keys_pressed["9"] = True
-                keys_just_pressed.add("9")
-            elif input_str.endswith(".0"):
-                keys_pressed["0"] = True
-                keys_just_pressed.add("0")
-            elif input_str.endswith(".MINUS"):
-                keys_pressed["-"] = True
-                keys_just_pressed.add("-")
-            elif input_str.endswith(".EQUALS"):
-                keys_pressed["="] = True
-                keys_just_pressed.add("=")
-            elif input_str.endswith(".TAB"):
-                active_arm_left = not active_arm_left
-                print(f"[INFO]: Switched to {'LEFT' if active_arm_left else 'RIGHT'} arm")
-
-        elif event.type == carb.input.KeyboardEventType.KEY_RELEASE:
-            if input_str.endswith(".I"):
-                keys_pressed["i"] = False
-            elif input_str.endswith(".K"):
-                keys_pressed["k"] = False
-            elif input_str.endswith(".J"):
-                keys_pressed["j"] = False
-            elif input_str.endswith(".L"):
-                keys_pressed["l"] = False
-            elif input_str.endswith(".W"):
-                keys_pressed["w"] = False
-            elif input_str.endswith(".S"):
-                keys_pressed["s"] = False
-            elif input_str.endswith(".Q"):
-                keys_pressed["q"] = False
-            elif input_str.endswith(".E"):
-                keys_pressed["e"] = False
-            elif input_str.endswith(".Z"):
-                keys_pressed["z"] = False
-            elif input_str.endswith(".C"):
-                keys_pressed["c"] = False
-            elif input_str.endswith(".R"):
-                keys_pressed["r"] = False
-            elif input_str.endswith(".F"):
-                keys_pressed["f"] = False
-            elif input_str.endswith(".T"):
-                keys_pressed["t"] = False
-            elif input_str.endswith(".G"):
-                keys_pressed["g"] = False
-            elif input_str.endswith(".Y"):
-                keys_pressed["y"] = False
-            elif input_str.endswith(".H"):
-                keys_pressed["h"] = False
-            elif input_str.endswith(".U"):
-                keys_pressed["u"] = False
-            elif input_str.endswith(".O"):
-                keys_pressed["o"] = False
-            elif input_str.endswith(".1"):
-                keys_pressed["1"] = False
-            elif input_str.endswith(".2"):
-                keys_pressed["2"] = False
-            elif input_str.endswith(".3"):
-                keys_pressed["3"] = False
-            elif input_str.endswith(".4"):
-                keys_pressed["4"] = False
-            elif input_str.endswith(".5"):
-                keys_pressed["5"] = False
-            elif input_str.endswith(".6"):
-                keys_pressed["6"] = False
-            elif input_str.endswith(".7"):
-                keys_pressed["7"] = False
-            elif input_str.endswith(".8"):
-                keys_pressed["8"] = False
-            elif input_str.endswith(".9"):
-                keys_pressed["9"] = False
-            elif input_str.endswith(".0"):
-                keys_pressed["0"] = False
-            elif input_str.endswith(".MINUS"):
-                keys_pressed["-"] = False
-            elif input_str.endswith(".EQUALS"):
-                keys_pressed["="] = False
-
-    try:
-        appwindow = omni.appwindow.get_default_app_window()
-        if appwindow:
-            keyboard = appwindow.get_keyboard()
-            if keyboard:
-                input_interface.subscribe_to_keyboard_events(keyboard, keyboard_event_handler)
-    except Exception:
-        pass
-
     sim_dt = sim.get_physics_dt()
     joint_targets = default_joint_targets.clone()
     joint_offsets = torch.zeros_like(default_joint_targets)
     base_velocity = torch.zeros((args_cli.num_envs, 3), device=sim.device)
-    base_speed = 10.0
-    step_size = 0.1
+    base_speed = 1.0
+    step_size = 0.0175  # ~1 degree in radians
 
     # Simple joint_limits for UI sliders (fallback)
     joint_limits = {}
@@ -435,7 +290,28 @@ def main():
         "targets": {},
         "defaults": {},
         "lock": threading.Lock(),
+        "keys_pressed": {
+            "i": False, "k": False, "j": False, "l": False,
+            "w": False, "s": False,
+            "q": False, "e": False,
+            "z": False, "c": False,
+            "r": False, "f": False,
+            "t": False, "g": False,
+            "y": False, "h": False,
+            "u": False, "o": False,
+            "1": False, "2": False,
+            "3": False, "4": False,
+            "5": False, "6": False,
+            "7": False, "8": False,
+            "9": False, "0": False,
+            "-": False, "=": False,
+        },
+        "keys_just_pressed": set(),
+        "control_mode": "keyboard",  # "keyboard" or "ui"
     }
+
+    # Track which arm is active (True = left, False = right) for future extension
+    active_arm_left = True
 
     for name in all_joint_names:
         idx = joint_indices[name]
@@ -448,58 +324,72 @@ def main():
     ui.set_initial_values()
 
     while simulation_app.is_running():
+        # Read and clear key state snapshot
+        with joint_data["lock"]:
+            kp = dict(joint_data["keys_pressed"])
+            kj = set(joint_data["keys_just_pressed"])
+            joint_data["keys_just_pressed"].clear()
+            control_mode = joint_data["control_mode"]
+
         base_velocity.zero_()
 
-        if keys_pressed["i"]:
+        # Base movement (always from keyboard)
+        if kp["i"]:
             base_velocity[:, 0] = base_speed
-        if keys_pressed["k"]:
+        if kp["k"]:
             base_velocity[:, 0] = -base_speed
-        if keys_pressed["j"]:
+        if kp["j"]:
             base_velocity[:, 1] = base_speed
-        if keys_pressed["l"]:
+        if kp["l"]:
             base_velocity[:, 1] = -base_speed
 
-        if "bow_pitch_joint_01" in joint_indices and joint_indices["bow_pitch_joint_01"] is not None:
-            idx = joint_indices["bow_pitch_joint_01"]
-            if "w" in keys_just_pressed:
-                joint_offsets[:, idx] += step_size
-            if "s" in keys_just_pressed:
-                joint_offsets[:, idx] -= step_size
-            if "a" in keys_just_pressed:
-                joint_offsets[:, idx] += step_size * 0.5
-            if "d" in keys_just_pressed:
-                joint_offsets[:, idx] -= step_size * 0.5
+        # Position control
+        if control_mode == "keyboard":
+            # Bow/torso joints (discrete steps)
+            if "bow_pitch_joint_01" in joint_indices and joint_indices["bow_pitch_joint_01"] is not None:
+                idx = joint_indices["bow_pitch_joint_01"]
+                if "w" in kj:
+                    joint_offsets[:, idx] += step_size
+                if "s" in kj:
+                    joint_offsets[:, idx] -= step_size
 
-        if "bow_pitch_joint_02" in joint_indices and joint_indices["bow_pitch_joint_02"] is not None:
-            idx = joint_indices["bow_pitch_joint_02"]
-            if "q" in keys_just_pressed:
-                joint_offsets[:, idx] += step_size
-            if "e" in keys_just_pressed:
-                joint_offsets[:, idx] -= step_size
+            if "bow_pitch_joint_02" in joint_indices and joint_indices["bow_pitch_joint_02"] is not None:
+                idx = joint_indices["bow_pitch_joint_02"]
+                if "q" in kj:
+                    joint_offsets[:, idx] += step_size
+                if "e" in kj:
+                    joint_offsets[:, idx] -= step_size
 
-        if "bow_pitch_joint_03" in joint_indices and joint_indices["bow_pitch_joint_03"] is not None:
-            idx = joint_indices["bow_pitch_joint_03"]
-            if "z" in keys_just_pressed:
-                joint_offsets[:, idx] += step_size
-            if "c" in keys_just_pressed:
-                joint_offsets[:, idx] -= step_size
+            if "bow_pitch_joint_03" in joint_indices and joint_indices["bow_pitch_joint_03"] is not None:
+                idx = joint_indices["bow_pitch_joint_03"]
+                if "z" in kj:
+                    joint_offsets[:, idx] += step_size
+                if "c" in kj:
+                    joint_offsets[:, idx] -= step_size
 
-        if "bow_yaw_joint" in joint_indices and joint_indices["bow_yaw_joint"] is not None:
-            idx = joint_indices["bow_yaw_joint"]
-            if "r" in keys_just_pressed:
-                joint_offsets[:, idx] += step_size
-            if "f" in keys_just_pressed:
-                joint_offsets[:, idx] -= step_size
+            if "bow_yaw_joint" in joint_indices and joint_indices["bow_yaw_joint"] is not None:
+                idx = joint_indices["bow_yaw_joint"]
+                if "r" in kj:
+                    joint_offsets[:, idx] += step_size
+                if "f" in kj:
+                    joint_offsets[:, idx] -= step_size
 
-        keys_just_pressed.clear()
+            # Build targets from defaults + keyboard offsets
+            joint_targets = default_joint_targets + joint_offsets
 
-        joint_targets = default_joint_targets + joint_offsets
-
-        with joint_data["lock"]:
-            for name, val in joint_data["targets"].items():
-                idx = joint_indices.get(name)
-                if idx is not None:
-                    joint_targets[:, idx] = val
+            # Update UI state to follow current pose so sliders stay in sync
+            with joint_data["lock"]:
+                for name, idx in joint_indices.items():
+                    if idx is not None:
+                        joint_data["targets"][name] = joint_targets[0, idx].item()
+        else:
+            # UI mode: ignore keyboard offsets, drive from sliders only
+            joint_targets = default_joint_targets.clone()
+            with joint_data["lock"]:
+                for name, val in joint_data["targets"].items():
+                    idx = joint_indices.get(name)
+                    if idx is not None:
+                        joint_targets[:, idx] = val
 
         robot.set_joint_position_target(joint_targets)
 
