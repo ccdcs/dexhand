@@ -183,7 +183,7 @@ def main():
         
         if event.type == carb.input.KeyboardEventType.KEY_PRESS:
             # Bow/Torso
-            elif input_str.endswith(".W"): 
+            if input_str.endswith(".W"): 
                 keys_pressed["w"] = True
                 keys_just_pressed.add("w")
             elif input_str.endswith(".S"): 
