@@ -19,6 +19,10 @@ args_cli = parser.parse_args()
 app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
 
+import threading
+import tkinter as tk
+from tkinter import ttk
+
 import carb
 import omni.appwindow
 import torch
@@ -58,6 +62,105 @@ CX002_CONFIG = ArticulationCfg(
 
 class Cx002SceneCfg(InteractiveSceneCfg):
     robot = CX002_CONFIG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+
+
+class JointControlUI:
+    def __init__(self, joint_data, joint_limits):
+        self.joint_data = joint_data
+        self.joint_limits = joint_limits
+        self.root = tk.Tk()
+        self.root.title("CX002 Teleoperation UI")
+        self.root.geometry("1200x900")
+
+        self.sliders = {}
+        self.value_labels = {}
+
+        self._build_ui()
+
+    def _build_ui(self):
+        main_frame = ttk.Frame(self.root, padding="10")
+        main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+
+        row = 0
+        ttk.Label(main_frame, text="Bow / Torso", font=("Arial", 14, "bold")).grid(
+            row=row, column=0, columnspan=3, pady=10, sticky=tk.W
+        )
+        row += 1
+
+        bow_joints = [
+            ("bow_pitch_joint_01", "Bow Pitch 01", -2.2689, 0.87266),
+            ("bow_pitch_joint_02", "Bow Pitch 02", -1.0472, 1.5708),
+            ("bow_pitch_joint_03", "Bow Pitch 03", -2.0944, 1.4486),
+            ("bow_yaw_joint", "Bow Yaw", -1.7453, 1.7453),
+        ]
+
+        for joint_name, label, jmin, jmax in bow_joints:
+            self._add_slider(main_frame, row, joint_name, label, jmin, jmax)
+            row += 1
+
+        ttk.Separator(main_frame, orient=tk.HORIZONTAL).grid(
+            row=row, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=10
+        )
+        row += 1
+
+        ttk.Label(main_frame, text="Head", font=("Arial", 14, "bold")).grid(
+            row=row, column=0, columnspan=3, pady=10, sticky=tk.W
+        )
+        row += 1
+
+        head_joints = [
+            ("head_yaw_joint", "Head Yaw", -1.5708, 1.5708),
+            ("head_pitch_joint", "Head Pitch", -0.8727, 0.3491),
+        ]
+
+        for joint_name, label, jmin, jmax in head_joints:
+            self._add_slider(main_frame, row, joint_name, label, jmin, jmax)
+            row += 1
+
+        self.root.columnconfigure(0, weight=1)
+        self.root.rowconfigure(0, weight=1)
+        main_frame.columnconfigure(1, weight=1)
+
+    def _add_slider(self, parent, row, joint_name, display_name, jmin, jmax):
+        ttk.Label(parent, text=display_name, width=18, font=("Arial", 12, "bold")).grid(
+            row=row, column=0, padx=10, pady=8, sticky=tk.W
+        )
+
+        slider = ttk.Scale(
+            parent,
+            from_=jmin,
+            to=jmax,
+            orient=tk.HORIZONTAL,
+            length=450,
+            command=lambda val, n=joint_name: self.on_slider_change(n, val),
+        )
+        slider.grid(row=row, column=1, sticky=(tk.W, tk.E), padx=10, pady=8)
+
+        value_label = ttk.Label(parent, text="0.000", width=10, font=("Arial", 12))
+        value_label.grid(row=row, column=2, padx=10, pady=8)
+
+        self.sliders[joint_name] = slider
+        self.value_labels[joint_name] = value_label
+
+    def on_slider_change(self, joint_name, value):
+        val = float(value)
+        if joint_name in self.joint_limits:
+            jmin, jmax = self.joint_limits[joint_name]
+            val = max(jmin, min(jmax, val))
+        with self.joint_data["lock"]:
+            self.joint_data["slider_targets"][joint_name] = val
+        if joint_name in self.value_labels:
+            self.value_labels[joint_name].config(text=f"{val:.3f}")
+
+    def set_initial_values(self, initial_targets):
+        for joint_name, target in initial_targets.items():
+            if joint_name in self.sliders:
+                self.sliders[joint_name].set(target)
+                if joint_name in self.value_labels:
+                    self.value_labels[joint_name].config(text=f"{target:.3f}")
+
+    def run(self):
+        self.root.mainloop()
 
 
 def main():
@@ -120,10 +223,7 @@ def main():
         sim.step(render=False)
         scene.update(sim.get_physics_dt())
     
-    # Professional keyboard control scheme
-    # Organized by body parts with logical key groupings
-    
-    print("[INFO]: Keyboard controls:")
+    print("[INFO]: Keyboard controls and UI:")
     print("=" * 60)
     print("BOW/TORSO (4 joints):")
     print("  W/S - Bow Pitch 01")
@@ -176,6 +276,37 @@ def main():
     active_arm_left = True
     
     keys_just_pressed = set()
+    
+    joint_limits = {
+        "bow_pitch_joint_01": (-2.2689, 0.87266),
+        "bow_pitch_joint_02": (-1.0472, 1.5708),
+        "bow_pitch_joint_03": (-2.0944, 1.4486),
+        "bow_yaw_joint": (-1.7453, 1.7453),
+        "head_yaw_joint": (-1.5708, 1.5708),
+        "head_pitch_joint": (-0.8727, 0.3491),
+    }
+    
+    joint_data = {
+        "slider_targets": {},
+        "lock": threading.Lock(),
+        "running": True,
+    }
+    
+    ui = JointControlUI(joint_data, joint_limits)
+    
+    initial_slider_targets = {}
+    for name in joint_limits.keys():
+        if name in joint_indices and joint_indices[name] is not None:
+            idx = joint_indices[name]
+            initial_slider_targets[name] = default_joint_targets[0, idx].item()
+            joint_data["slider_targets"][name] = initial_slider_targets[name]
+    
+    ui.set_initial_values(initial_slider_targets)
+    
+    def ui_thread():
+        ui.run()
+    
+    threading.Thread(target=ui_thread, daemon=True).start()
     
     def keyboard_event_handler(event, *args, **kwargs):
         nonlocal keys_just_pressed, active_arm_left
@@ -365,6 +496,15 @@ def main():
         keys_just_pressed.clear()
         
         joint_targets = default_joint_targets + joint_offsets
+        
+        with joint_data["lock"]:
+            for joint_name, slider_val in joint_data["slider_targets"].items():
+                if joint_name in joint_indices and joint_indices[joint_name] is not None:
+                    idx = joint_indices[joint_name]
+                    if joint_name in joint_limits:
+                        jmin, jmax = joint_limits[joint_name]
+                        slider_val = max(jmin, min(jmax, slider_val))
+                    joint_targets[:, idx] = slider_val
         
         robot.set_joint_position_target(joint_targets)
         
