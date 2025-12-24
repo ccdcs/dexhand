@@ -23,8 +23,6 @@ import threading
 import tkinter as tk
 from tkinter import ttk
 
-import carb
-import omni.appwindow
 import torch
 import isaaclab.sim as sim_utils
 from isaaclab.actuators import ImplicitActuatorCfg
@@ -76,6 +74,9 @@ class JointControlUI:
         self.value_labels = {}
 
         self._build_ui()
+
+        self.root.bind("<KeyPress>", self._on_key_press)
+        self.root.bind("<KeyRelease>", self._on_key_release)
 
     def _build_ui(self):
         main_frame = ttk.Frame(self.root, padding="10")
@@ -151,6 +152,18 @@ class JointControlUI:
             self.joint_data["slider_targets"][joint_name] = val
         if joint_name in self.value_labels:
             self.value_labels[joint_name].config(text=f"{val:.3f}")
+
+    def _on_key_press(self, event):
+        key = event.keysym.lower()
+        with self.joint_data["lock"]:
+            if "keys_pressed" in self.joint_data and key in self.joint_data["keys_pressed"]:
+                self.joint_data["keys_pressed"][key] = True
+
+    def _on_key_release(self, event):
+        key = event.keysym.lower()
+        with self.joint_data["lock"]:
+            if "keys_pressed" in self.joint_data and key in self.joint_data["keys_pressed"]:
+                self.joint_data["keys_pressed"][key] = False
 
     def set_initial_values(self, initial_targets):
         for joint_name, target in initial_targets.items():
@@ -255,33 +268,24 @@ def main():
     print("      Hold keys for continuous movement")
     print("=" * 60)
 
-    input_interface = carb.input.acquire_input_interface()
-    
-    keys_pressed = {
-        # Bow/Torso
-        "w": False, "s": False,  # bow_pitch_joint_01
-        "q": False, "e": False,  # bow_pitch_joint_02
-        "z": False, "c": False,  # bow_pitch_joint_03
-        "r": False, "f": False,  # bow_yaw_joint
-        # Head
-        "t": False, "g": False,  # head_yaw_joint
-        "y": False, "h": False,  # head_pitch_joint
-        # Arm controls (shared for left/right) - using number row
-        "u": False, "o": False,  # shoulder_pitch
-        "1": False, "2": False,  # shoulder_roll
-        "3": False, "4": False,  # shoulder_yaw
-        "5": False, "6": False,  # elbow_roll
-        "7": False, "8": False,  # elbow_yaw
-        "9": False, "0": False,  # wrist_roll
-        "-": False, "=": False,  # wrist_pitch
-        # Arm toggle
+    keys_template = {
+        "w": False, "s": False,
+        "q": False, "e": False,
+        "z": False, "c": False,
+        "r": False, "f": False,
+        "t": False, "g": False,
+        "y": False, "h": False,
+        "u": False, "o": False,
+        "1": False, "2": False,
+        "3": False, "4": False,
+        "5": False, "6": False,
+        "7": False, "8": False,
+        "9": False, "0": False,
+        "-": False, "=": False,
         "tab": False,
     }
     
-    # Track which arm is active (True = left, False = right)
     active_arm_left = True
-    
-    keys_just_pressed = set()
     
     joint_limits = {
         "bow_pitch_joint_01": (-2.2689, 0.87266),
