@@ -186,85 +186,85 @@ def main():
             if input_str.endswith(".W"): 
                 keys_pressed["w"] = True
                 keys_just_pressed.add("w")
-            elif input_str.endswith(".S"): 
+            if input_str.endswith(".S"): 
                 keys_pressed["s"] = True
                 keys_just_pressed.add("s")
-            elif input_str.endswith(".Q"): 
+            if input_str.endswith(".Q"): 
                 keys_pressed["q"] = True
                 keys_just_pressed.add("q")
-            elif input_str.endswith(".E"): 
+            if input_str.endswith(".E"): 
                 keys_pressed["e"] = True
                 keys_just_pressed.add("e")
-            elif input_str.endswith(".Z"): 
+            if input_str.endswith(".Z"): 
                 keys_pressed["z"] = True
                 keys_just_pressed.add("z")
-            elif input_str.endswith(".C"): 
+            if input_str.endswith(".C"): 
                 keys_pressed["c"] = True
                 keys_just_pressed.add("c")
-            elif input_str.endswith(".R"): 
+            if input_str.endswith(".R"): 
                 keys_pressed["r"] = True
                 keys_just_pressed.add("r")
-            elif input_str.endswith(".F"): 
+            if input_str.endswith(".F"): 
                 keys_pressed["f"] = True
                 keys_just_pressed.add("f")
             # Head
-            elif input_str.endswith(".T"): 
+            if input_str.endswith(".T"): 
                 keys_pressed["t"] = True
                 keys_just_pressed.add("t")
-            elif input_str.endswith(".G"): 
+            if input_str.endswith(".G"): 
                 keys_pressed["g"] = True
                 keys_just_pressed.add("g")
-            elif input_str.endswith(".Y"): 
+            if input_str.endswith(".Y"): 
                 keys_pressed["y"] = True
                 keys_just_pressed.add("y")
-            elif input_str.endswith(".H"): 
+            if input_str.endswith(".H"): 
                 keys_pressed["h"] = True
                 keys_just_pressed.add("h")
             # Arms
-            elif input_str.endswith(".U"): 
+            if input_str.endswith(".U"): 
                 keys_pressed["u"] = True
                 keys_just_pressed.add("u")
-            elif input_str.endswith(".O"): 
+            if input_str.endswith(".O"): 
                 keys_pressed["o"] = True
                 keys_just_pressed.add("o")
-            elif input_str.endswith(".1") or input_str.endswith(".ONE"): 
+            if input_str.endswith(".1") or input_str.endswith(".ONE"): 
                 keys_pressed["1"] = True
                 keys_just_pressed.add("1")
-            elif input_str.endswith(".2") or input_str.endswith(".TWO"): 
+            if input_str.endswith(".2") or input_str.endswith(".TWO"): 
                 keys_pressed["2"] = True
                 keys_just_pressed.add("2")
-            elif input_str.endswith(".3") or input_str.endswith(".THREE"): 
+            if input_str.endswith(".3") or input_str.endswith(".THREE"): 
                 keys_pressed["3"] = True
                 keys_just_pressed.add("3")
-            elif input_str.endswith(".4") or input_str.endswith(".FOUR"): 
+            if input_str.endswith(".4") or input_str.endswith(".FOUR"): 
                 keys_pressed["4"] = True
                 keys_just_pressed.add("4")
-            elif input_str.endswith(".5") or input_str.endswith(".FIVE"): 
+            if input_str.endswith(".5") or input_str.endswith(".FIVE"): 
                 keys_pressed["5"] = True
                 keys_just_pressed.add("5")
-            elif input_str.endswith(".6") or input_str.endswith(".SIX"): 
+            if input_str.endswith(".6") or input_str.endswith(".SIX"): 
                 keys_pressed["6"] = True
                 keys_just_pressed.add("6")
-            elif input_str.endswith(".7") or input_str.endswith(".SEVEN"): 
+            if input_str.endswith(".7") or input_str.endswith(".SEVEN"): 
                 keys_pressed["7"] = True
                 keys_just_pressed.add("7")
-            elif input_str.endswith(".8") or input_str.endswith(".EIGHT"): 
+            if input_str.endswith(".8") or input_str.endswith(".EIGHT"): 
                 keys_pressed["8"] = True
                 keys_just_pressed.add("8")
-            elif input_str.endswith(".9") or input_str.endswith(".NINE"): 
+            if input_str.endswith(".9") or input_str.endswith(".NINE"): 
                 keys_pressed["9"] = True
                 keys_just_pressed.add("9")
-            elif input_str.endswith(".0") or input_str.endswith(".ZERO"): 
+            if input_str.endswith(".0") or input_str.endswith(".ZERO"): 
                 keys_pressed["0"] = True
                 keys_just_pressed.add("0")
-            elif input_str.endswith(".MINUS") or input_str.endswith(".-"): 
+            if input_str.endswith(".MINUS") or input_str.endswith(".-"): 
                 keys_pressed["-"] = True
                 keys_just_pressed.add("-")
-            elif input_str.endswith(".EQUALS") or input_str.endswith(".="): 
+            if input_str.endswith(".EQUALS") or input_str.endswith(".="): 
                 keys_pressed["="] = True
                 keys_just_pressed.add("=")
             # Arm toggle
-            elif input_str.endswith(".TAB"): 
+            if input_str.endswith(".TAB"): 
                 if "tab" not in keys_just_pressed:
                     active_arm_left = not active_arm_left
                     arm_name = "LEFT" if active_arm_left else "RIGHT"
@@ -273,35 +273,35 @@ def main():
                 keys_just_pressed.add("tab")
         elif event.type == carb.input.KeyboardEventType.KEY_RELEASE:
             # Bow/Torso
-            elif input_str.endswith(".W"): keys_pressed["w"] = False
-            elif input_str.endswith(".S"): keys_pressed["s"] = False
-            elif input_str.endswith(".Q"): keys_pressed["q"] = False
-            elif input_str.endswith(".E"): keys_pressed["e"] = False
-            elif input_str.endswith(".Z"): keys_pressed["z"] = False
-            elif input_str.endswith(".C"): keys_pressed["c"] = False
-            elif input_str.endswith(".R"): keys_pressed["r"] = False
-            elif input_str.endswith(".F"): keys_pressed["f"] = False
+            if input_str.endswith(".W"): keys_pressed["w"] = False
+            if input_str.endswith(".S"): keys_pressed["s"] = False
+            if input_str.endswith(".Q"): keys_pressed["q"] = False
+            if input_str.endswith(".E"): keys_pressed["e"] = False
+            if input_str.endswith(".Z"): keys_pressed["z"] = False
+            if input_str.endswith(".C"): keys_pressed["c"] = False
+            if input_str.endswith(".R"): keys_pressed["r"] = False
+            if input_str.endswith(".F"): keys_pressed["f"] = False
             # Head
-            elif input_str.endswith(".T"): keys_pressed["t"] = False
-            elif input_str.endswith(".G"): keys_pressed["g"] = False
-            elif input_str.endswith(".Y"): keys_pressed["y"] = False
-            elif input_str.endswith(".H"): keys_pressed["h"] = False
+            if input_str.endswith(".T"): keys_pressed["t"] = False
+            if input_str.endswith(".G"): keys_pressed["g"] = False
+            if input_str.endswith(".Y"): keys_pressed["y"] = False
+            if input_str.endswith(".H"): keys_pressed["h"] = False
             # Arms
-            elif input_str.endswith(".U"): keys_pressed["u"] = False
-            elif input_str.endswith(".O"): keys_pressed["o"] = False
-            elif input_str.endswith(".1") or input_str.endswith(".ONE"): keys_pressed["1"] = False
-            elif input_str.endswith(".2") or input_str.endswith(".TWO"): keys_pressed["2"] = False
-            elif input_str.endswith(".3") or input_str.endswith(".THREE"): keys_pressed["3"] = False
-            elif input_str.endswith(".4") or input_str.endswith(".FOUR"): keys_pressed["4"] = False
-            elif input_str.endswith(".5") or input_str.endswith(".FIVE"): keys_pressed["5"] = False
-            elif input_str.endswith(".6") or input_str.endswith(".SIX"): keys_pressed["6"] = False
-            elif input_str.endswith(".7") or input_str.endswith(".SEVEN"): keys_pressed["7"] = False
-            elif input_str.endswith(".8") or input_str.endswith(".EIGHT"): keys_pressed["8"] = False
-            elif input_str.endswith(".9") or input_str.endswith(".NINE"): keys_pressed["9"] = False
-            elif input_str.endswith(".0") or input_str.endswith(".ZERO"): keys_pressed["0"] = False
-            elif input_str.endswith(".MINUS") or input_str.endswith(".-"): keys_pressed["-"] = False
-            elif input_str.endswith(".EQUALS") or input_str.endswith(".="): keys_pressed["="] = False
-            elif input_str.endswith(".TAB"): keys_pressed["tab"] = False
+            if input_str.endswith(".U"): keys_pressed["u"] = False
+            if input_str.endswith(".O"): keys_pressed["o"] = False
+            if input_str.endswith(".1") or input_str.endswith(".ONE"): keys_pressed["1"] = False
+            if input_str.endswith(".2") or input_str.endswith(".TWO"): keys_pressed["2"] = False
+            if input_str.endswith(".3") or input_str.endswith(".THREE"): keys_pressed["3"] = False
+            if input_str.endswith(".4") or input_str.endswith(".FOUR"): keys_pressed["4"] = False
+            if input_str.endswith(".5") or input_str.endswith(".FIVE"): keys_pressed["5"] = False
+            if input_str.endswith(".6") or input_str.endswith(".SIX"): keys_pressed["6"] = False
+            if input_str.endswith(".7") or input_str.endswith(".SEVEN"): keys_pressed["7"] = False
+            if input_str.endswith(".8") or input_str.endswith(".EIGHT"): keys_pressed["8"] = False
+            if input_str.endswith(".9") or input_str.endswith(".NINE"): keys_pressed["9"] = False
+            if input_str.endswith(".0") or input_str.endswith(".ZERO"): keys_pressed["0"] = False
+            if input_str.endswith(".MINUS") or input_str.endswith(".-"): keys_pressed["-"] = False
+            if input_str.endswith(".EQUALS") or input_str.endswith(".="): keys_pressed["="] = False
+            if input_str.endswith(".TAB"): keys_pressed["tab"] = False
     
     try:
         appwindow = omni.appwindow.get_default_app_window()
