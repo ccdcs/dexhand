@@ -159,7 +159,13 @@ class JointControlUI:
                 if joint_name in self.value_labels:
                     self.value_labels[joint_name].config(text=f"{target:.3f}")
 
-    def run(self):
+    def run(self, simulation_step, joint_data):
+        def loop():
+            if not joint_data["running"]:
+                return
+            simulation_step()
+            self.root.after(5, loop)
+        self.root.after(5, loop)
         self.root.mainloop()
 
 
@@ -302,11 +308,6 @@ def main():
             joint_data["slider_targets"][name] = initial_slider_targets[name]
     
     ui.set_initial_values(initial_slider_targets)
-    
-    def ui_thread():
-        ui.run()
-    
-    threading.Thread(target=ui_thread, daemon=True).start()
     
     def keyboard_event_handler(event, *args, **kwargs):
         nonlocal keys_just_pressed, active_arm_left
@@ -461,7 +462,7 @@ def main():
         "head_pitch_joint": ("y", "h"),
     }
     
-    # Arm joint mappings (will be prefixed with left_ or right_)
+    # Arm joint mappings (prefixed with left_ or right_)
     arm_joint_mappings = {
         "shoulder_pitch_joint": ("u", "o"),
         "shoulder_roll_joint": ("1", "2"),
@@ -472,8 +473,11 @@ def main():
         "wrist_pitch_joint": ("-", "="),
     }
     
-    while simulation_app.is_running():
-        # Bow/Torso and Head joints (discrete steps on key press)
+    def simulation_step():
+        if not simulation_app.is_running():
+            joint_data["running"] = False
+            return
+
         for joint_name, (inc_key, dec_key) in joint_key_mappings.items():
             if joint_name in joint_indices and joint_indices[joint_name] is not None:
                 idx = joint_indices[joint_name]
@@ -482,7 +486,6 @@ def main():
                 if dec_key in keys_just_pressed:
                     joint_offsets[:, idx] -= step_size
         
-        # Arm joints (discrete steps, with left/right toggle)
         arm_prefix = "left_" if active_arm_left else "right_"
         for joint_suffix, (inc_key, dec_key) in arm_joint_mappings.items():
             joint_name = f"{arm_prefix}{joint_suffix}"
@@ -515,6 +518,8 @@ def main():
         scene.write_data_to_sim()
         sim.step(render=True)
         scene.update(sim_dt)
+
+    ui.run(simulation_step, joint_data)
 
 
 if __name__ == "__main__":
