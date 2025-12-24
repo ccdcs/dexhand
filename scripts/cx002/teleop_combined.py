@@ -63,9 +63,10 @@ class Cx002SceneCfg(InteractiveSceneCfg):
 
 
 class JointControlUI:
-    def __init__(self, joint_data, joint_limits):
+    def __init__(self, joint_data, joint_limits, joint_names_order=None):
         self.joint_data = joint_data
         self.joint_limits = joint_limits
+        self.joint_names_order = joint_names_order or list(joint_limits.keys())
         self.root = tk.Tk()
         self.root.title("CX002 Teleoperation UI")
         self.root.geometry("1200x900")
