@@ -298,11 +298,12 @@ def main():
     
     joint_data = {
         "slider_targets": {},
+        "keys_pressed": keys_template.copy(),
         "lock": threading.Lock(),
         "running": True,
     }
     
-    ui = JointControlUI(joint_data, joint_limits)
+    ui = JointControlUI(joint_data, joint_limits, [])
     
     initial_slider_targets = {}
     for name in joint_limits.keys():
@@ -312,144 +313,9 @@ def main():
             joint_data["slider_targets"][name] = initial_slider_targets[name]
     
     ui.set_initial_values(initial_slider_targets)
-    
-    def keyboard_event_handler(event, *args, **kwargs):
-        nonlocal keys_just_pressed, active_arm_left
-        input_str = str(event.input)
-        
-        if event.type == carb.input.KeyboardEventType.KEY_PRESS:
-            # Bow/Torso
-            if input_str.endswith(".W"): 
-                keys_pressed["w"] = True
-                keys_just_pressed.add("w")
-            if input_str.endswith(".S"): 
-                keys_pressed["s"] = True
-                keys_just_pressed.add("s")
-            if input_str.endswith(".Q"): 
-                keys_pressed["q"] = True
-                keys_just_pressed.add("q")
-            if input_str.endswith(".E"): 
-                keys_pressed["e"] = True
-                keys_just_pressed.add("e")
-            if input_str.endswith(".Z"): 
-                keys_pressed["z"] = True
-                keys_just_pressed.add("z")
-            if input_str.endswith(".C"): 
-                keys_pressed["c"] = True
-                keys_just_pressed.add("c")
-            if input_str.endswith(".R"): 
-                keys_pressed["r"] = True
-                keys_just_pressed.add("r")
-            if input_str.endswith(".F"): 
-                keys_pressed["f"] = True
-                keys_just_pressed.add("f")
-            # Head
-            if input_str.endswith(".T"): 
-                keys_pressed["t"] = True
-                keys_just_pressed.add("t")
-            if input_str.endswith(".G"): 
-                keys_pressed["g"] = True
-                keys_just_pressed.add("g")
-            if input_str.endswith(".Y"): 
-                keys_pressed["y"] = True
-                keys_just_pressed.add("y")
-            if input_str.endswith(".H"): 
-                keys_pressed["h"] = True
-                keys_just_pressed.add("h")
-            # Arms
-            if input_str.endswith(".U"): 
-                keys_pressed["u"] = True
-                keys_just_pressed.add("u")
-            if input_str.endswith(".O"): 
-                keys_pressed["o"] = True
-                keys_just_pressed.add("o")
-            if input_str.endswith(".1") or input_str.endswith(".ONE"): 
-                keys_pressed["1"] = True
-                keys_just_pressed.add("1")
-            if input_str.endswith(".2") or input_str.endswith(".TWO"): 
-                keys_pressed["2"] = True
-                keys_just_pressed.add("2")
-            if input_str.endswith(".3") or input_str.endswith(".THREE"): 
-                keys_pressed["3"] = True
-                keys_just_pressed.add("3")
-            if input_str.endswith(".4") or input_str.endswith(".FOUR"): 
-                keys_pressed["4"] = True
-                keys_just_pressed.add("4")
-            if input_str.endswith(".5") or input_str.endswith(".FIVE"): 
-                keys_pressed["5"] = True
-                keys_just_pressed.add("5")
-            if input_str.endswith(".6") or input_str.endswith(".SIX"): 
-                keys_pressed["6"] = True
-                keys_just_pressed.add("6")
-            if input_str.endswith(".7") or input_str.endswith(".SEVEN"): 
-                keys_pressed["7"] = True
-                keys_just_pressed.add("7")
-            if input_str.endswith(".8") or input_str.endswith(".EIGHT"): 
-                keys_pressed["8"] = True
-                keys_just_pressed.add("8")
-            if input_str.endswith(".9") or input_str.endswith(".NINE"): 
-                keys_pressed["9"] = True
-                keys_just_pressed.add("9")
-            if input_str.endswith(".0") or input_str.endswith(".ZERO"): 
-                keys_pressed["0"] = True
-                keys_just_pressed.add("0")
-            if input_str.endswith(".MINUS") or input_str.endswith(".-"): 
-                keys_pressed["-"] = True
-                keys_just_pressed.add("-")
-            if input_str.endswith(".EQUALS") or input_str.endswith(".="): 
-                keys_pressed["="] = True
-                keys_just_pressed.add("=")
-            # Arm toggle
-            if input_str.endswith(".TAB"): 
-                if "tab" not in keys_just_pressed:
-                    active_arm_left = not active_arm_left
-                    arm_name = "LEFT" if active_arm_left else "RIGHT"
-                    print(f"[INFO]: Switched to {arm_name} arm control")
-                keys_pressed["tab"] = True
-                keys_just_pressed.add("tab")
-        elif event.type == carb.input.KeyboardEventType.KEY_RELEASE:
-            # Bow/Torso
-            if input_str.endswith(".W"): keys_pressed["w"] = False
-            if input_str.endswith(".S"): keys_pressed["s"] = False
-            if input_str.endswith(".Q"): keys_pressed["q"] = False
-            if input_str.endswith(".E"): keys_pressed["e"] = False
-            if input_str.endswith(".Z"): keys_pressed["z"] = False
-            if input_str.endswith(".C"): keys_pressed["c"] = False
-            if input_str.endswith(".R"): keys_pressed["r"] = False
-            if input_str.endswith(".F"): keys_pressed["f"] = False
-            # Head
-            if input_str.endswith(".T"): keys_pressed["t"] = False
-            if input_str.endswith(".G"): keys_pressed["g"] = False
-            if input_str.endswith(".Y"): keys_pressed["y"] = False
-            if input_str.endswith(".H"): keys_pressed["h"] = False
-            # Arms
-            if input_str.endswith(".U"): keys_pressed["u"] = False
-            if input_str.endswith(".O"): keys_pressed["o"] = False
-            if input_str.endswith(".1") or input_str.endswith(".ONE"): keys_pressed["1"] = False
-            if input_str.endswith(".2") or input_str.endswith(".TWO"): keys_pressed["2"] = False
-            if input_str.endswith(".3") or input_str.endswith(".THREE"): keys_pressed["3"] = False
-            if input_str.endswith(".4") or input_str.endswith(".FOUR"): keys_pressed["4"] = False
-            if input_str.endswith(".5") or input_str.endswith(".FIVE"): keys_pressed["5"] = False
-            if input_str.endswith(".6") or input_str.endswith(".SIX"): keys_pressed["6"] = False
-            if input_str.endswith(".7") or input_str.endswith(".SEVEN"): keys_pressed["7"] = False
-            if input_str.endswith(".8") or input_str.endswith(".EIGHT"): keys_pressed["8"] = False
-            if input_str.endswith(".9") or input_str.endswith(".NINE"): keys_pressed["9"] = False
-            if input_str.endswith(".0") or input_str.endswith(".ZERO"): keys_pressed["0"] = False
-            if input_str.endswith(".MINUS") or input_str.endswith(".-"): keys_pressed["-"] = False
-            if input_str.endswith(".EQUALS") or input_str.endswith(".="): keys_pressed["="] = False
-            if input_str.endswith(".TAB"): keys_pressed["tab"] = False
-    
-    try:
-        appwindow = omni.appwindow.get_default_app_window()
-        if appwindow:
-            keyboard = appwindow.get_keyboard()
-            if keyboard:
-                input_interface.subscribe_to_keyboard_events(keyboard, keyboard_event_handler)
-    except Exception:
-        pass
 
     sim_dt = sim.get_physics_dt()
-    step_size = 0.0175  # 1 degree in radians (position-based control)
+    step_size = 0.0175
     
     joint_targets = default_joint_targets.clone()
     joint_offsets = torch.zeros_like(default_joint_targets)
@@ -478,29 +344,36 @@ def main():
     }
     
     def simulation_step():
+        nonlocal active_arm_left, joint_offsets
+
         if not simulation_app.is_running():
             joint_data["running"] = False
             return
 
-        for joint_name, (inc_key, dec_key) in joint_key_mappings.items():
-            if joint_name in joint_indices and joint_indices[joint_name] is not None:
-                idx = joint_indices[joint_name]
-                if inc_key in keys_just_pressed:
-                    joint_offsets[:, idx] += step_size
-                if dec_key in keys_just_pressed:
-                    joint_offsets[:, idx] -= step_size
-        
-        arm_prefix = "left_" if active_arm_left else "right_"
-        for joint_suffix, (inc_key, dec_key) in arm_joint_mappings.items():
-            joint_name = f"{arm_prefix}{joint_suffix}"
-            if joint_name in joint_indices and joint_indices[joint_name] is not None:
-                idx = joint_indices[joint_name]
-                if inc_key in keys_just_pressed:
-                    joint_offsets[:, idx] += step_size
-                if dec_key in keys_just_pressed:
-                    joint_offsets[:, idx] -= step_size
-        
-        keys_just_pressed.clear()
+        with joint_data["lock"]:
+            kp = joint_data["keys_pressed"]
+
+            for joint_name, (inc_key, dec_key) in joint_key_mappings.items():
+                if joint_name in joint_indices and joint_indices[joint_name] is not None:
+                    idx = joint_indices[joint_name]
+                    if kp.get(inc_key, False):
+                        joint_offsets[:, idx] += step_size
+                    if kp.get(dec_key, False):
+                        joint_offsets[:, idx] -= step_size
+
+            arm_prefix = "left_" if active_arm_left else "right_"
+            if kp.get("tab", False):
+                active_arm_left = not active_arm_left
+                joint_data["keys_pressed"]["tab"] = False
+
+            for joint_suffix, (inc_key, dec_key) in arm_joint_mappings.items():
+                joint_name = f"{arm_prefix}{joint_suffix}"
+                if joint_name in joint_indices and joint_indices[joint_name] is not None:
+                    idx = joint_indices[joint_name]
+                    if kp.get(inc_key, False):
+                        joint_offsets[:, idx] += step_size
+                    if kp.get(dec_key, False):
+                        joint_offsets[:, idx] -= step_size
         
         joint_targets = default_joint_targets + joint_offsets
         
