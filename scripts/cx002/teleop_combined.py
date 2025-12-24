@@ -149,14 +149,13 @@ class JointControlUI:
     def _on_key_press(self, event):
         key = event.keysym.lower()
         with self.joint_data["lock"]:
-            # Control-mode toggle: F1 -> keyboard, F2 -> UI
-            if key == "f1":
-                self.joint_data["control_mode"] = "keyboard"
-                print("[INFO]: Control mode = KEYBOARD (sliders follow keyboard pose).")
-                return
-            if key == "f2":
-                self.joint_data["control_mode"] = "ui"
-                print("[INFO]: Control mode = UI (sliders drive robot).")
+            # Control-mode toggle: 'm' to switch between keyboard/UI
+            if key == "m":
+                current = self.joint_data["control_mode"]
+                new_mode = "ui" if current == "keyboard" else "keyboard"
+                self.joint_data["control_mode"] = new_mode
+                print(f"[INFO]: Control mode = {new_mode.upper()} "
+                      f"({'sliders drive robot' if new_mode == 'ui' else 'sliders follow keyboard pose'}).")
                 return
 
             # Normalize some special keys
