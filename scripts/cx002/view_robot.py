@@ -12,17 +12,13 @@ import argparse
 
 from isaaclab.app import AppLauncher
 
-# add argparse arguments
 parser = argparse.ArgumentParser(
     description="Spawn and view the cx002 humanoid robot in Isaac Sim."
 )
 parser.add_argument("--num_envs", type=int, default=1, help="Number of environments to spawn.")
-# append AppLauncher cli args
 AppLauncher.add_app_launcher_args(parser)
-# parse the arguments
 args_cli = parser.parse_args()
 
-# launch omniverse app
 app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
 
@@ -32,7 +28,7 @@ from isaaclab.assets import AssetBaseCfg
 from isaaclab.assets.articulation import ArticulationCfg
 from isaaclab.scene import InteractiveScene, InteractiveSceneCfg
 
-# CX002 robot configuration using the new USD file
+# CX002 robot configuration using USD file
 CX002_CONFIG = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(
         usd_path="assets/cx002_description_new/cx002_robot/cx002_robot.usd",
@@ -47,9 +43,9 @@ CX002_CONFIG = ArticulationCfg(
         ),
     ),
     init_state=ArticulationCfg.InitialStateCfg(
-        pos=(0.0, 0.0, 0.0),  # Spawn at height 1.0m
+        pos=(0.0, 0.0, 0.0),
     ),
-    # Actuators for all joints using wildcard pattern
+    
     actuators={
         "all_joints": ImplicitActuatorCfg(
             joint_names_expr=[".*"],

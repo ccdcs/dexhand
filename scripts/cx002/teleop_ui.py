@@ -5,7 +5,7 @@
 
 """
 UI-based teleoperation for cx002 robot using tkinter sliders.
-Implements position-based control with smoothing and velocity limits.
+Implements position-based control.
 """
 
 import argparse
@@ -413,9 +413,6 @@ def main():
         
         # Process keyboard inputs for joints (position-based, continuous on hold)
         with joint_data["lock"]:
-            # Handle keyboard joint control (position-based steps, continuous when held)
-            # Each joint has one key pair - fires every frame while key is held
-            # Step size: 1 degree (~0.0175 radians) per frame at ~200 Hz
             
             # bow_pitch_joint_01: W/S
             if "bow_pitch_joint_01" in joint_indices and joint_indices["bow_pitch_joint_01"] is not None:
@@ -499,9 +496,9 @@ def main():
                 if joint_name in joint_indices and joint_indices[joint_name] is not None:
                     current_positions[joint_name] = robot.data.joint_pos[0, joint_indices[joint_name]].item()
         
-        # Handle base movement (keyboard only, continuous velocity-based)
+        # Handle base movement
         base_velocity = torch.zeros((args_cli.num_envs, 3), device=sim.device)
-        base_speed = 1.0  # Position-based control: smooth movement
+        base_speed = 1.0 
         
         if keys_pressed.get("i", False):
             base_velocity[:, 0] = base_speed
@@ -514,7 +511,6 @@ def main():
         
         robot.set_joint_position_target(joint_targets)
         
-        # Update base position if moving (position-based, not velocity)
         root_state = robot.data.root_state_w.clone()
         if torch.any(base_velocity != 0):
             root_state[:, 0:3] += base_velocity * sim_dt

@@ -120,8 +120,7 @@ def main():
         sim.step(render=False)
         scene.update(sim.get_physics_dt())
     
-    # Professional keyboard control scheme
-    # Organized by body parts with logical key groupings
+    # Keyboard control scheme organized by body parts
     
     print("[INFO]: Keyboard controls:")
     print("=" * 60)
