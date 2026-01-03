@@ -47,7 +47,7 @@ CX002_CONFIG = ArticulationCfg(
         ),
     ),
     init_state=ArticulationCfg.InitialStateCfg(
-        pos=(0.0, 0.0, 1.0),  # Spawn at height 1.0m
+        pos=(0.0, 0.0, 0.0),  # Spawn at height 1.0m
     ),
     # Actuators for all joints using wildcard pattern
     actuators={
